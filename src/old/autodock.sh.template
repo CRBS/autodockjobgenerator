@@ -1,0 +1,18 @@
+#!/bin/bash
+
+VINA="$PANFISH_BASEDIR@AUTO_DOCK_VINA_BINARY@"
+
+ARGUMENTS="--center_x 41.1100 --center_y 34.9382 --center_z 35.8160 --size_x 25.0000 --size_y 25.0000 --size_z 25.0000"
+
+
+for Y in `cat config/$SGE_TASK_ID.$0.config` ; do
+   THE_ARGS=`echo $Y | sed "^.*::://"`
+   echo "$VINA  $THE_ARGS --out $OUTPUT_FILE $ARGUMENTS --cpu 2"
+echo "vina start time: `date +%s`"
+$VINA  $THE_ARGS --out $OUTPUT_FILE $ARGUMENTS --cpu 2
+
+EXIT_CODE=$?
+echo "vina end time: `date +%s`"
+echo "vina exit code: $EXIT_CODE"
+
+exit $EXIT_CODE

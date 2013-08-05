@@ -1,0 +1,61 @@
+#!/bin/sh
+
+RAW_SEQ_RANGE_LIST=`egrep "^${SGE_TASK_ID}:::" ${0}.config | sed "s/^.*::://"`
+
+BASEDIR=`dirname $0`
+
+TMP_IO_DIR="$PANFISH_SCRATCH/${JOB_ID}.${SGE_TASK_ID}.$$"
+
+# remove tmp directory if one exists already
+if [ -e $TMP_IO_DIR ] ; then
+  /bin/rm -rf $TMP_IO_DIR
+  if [ $? != 0 ] ; then
+    echo "Error removing $TMP_IO_DIR"
+    exit 1
+  fi
+fi
+
+
+/bin/mkdir -p $TMP_IO_DIR
+
+if [ $? != 0 ] ; then
+  echo "Error creating directory $TMP_IO_DIR" 1>&2
+  exit 1
+fi
+
+TMP_IO_DIR_ERR="$TMP_IO_DIR/stderr"
+TMP_IO_DIR_OUT="$TMP_IO_DIR/stdout"
+
+/bin/mkdir -p $TMP_IO_DIR_ERR
+
+if [ $? != 0 ] ; then
+  echo "Error creating directory $TMP_IO_DIR_ERR" 1>&2
+  exit 1
+fi
+
+/bin/mkdir -p $TMP_IO_DIR_OUT
+
+if [ $? != 0 ] ; then
+  echo "Error creating directory $TMP_IO_DIR_OUT" 1>&2
+  exit 1
+fi
+
+for Y in `echo $RAW_SEQ_RANGE_LIST | sed "s/,/ /g"` ; do
+
+   SEQ_RANGE=`echo $Y | sed "s/-/ /g"`
+   for Z in `seq $SEQ_RANGE` ; do
+      export SGE_TASK_ID=$Z
+      $BASEDIR/autodock.sh > $TMP_IO_DIR_OUT/autodockOut.${SGE_TASK_ID} 2> $TMP_IO_DIR_ERR/autodockError.${SGE_TASK_ID}
+   done
+done
+
+
+/bin/mv -f $TMP_IO_DIR_OUT/* $BASEDIR/stdout/.
+
+#remove any 0 size error files cause they are not important
+find $TMP_IO_DIR_ERR -maxdepth 1 -size 0 -type f -exec rm -f '{}' \;
+
+/bin/mv -f $TMP_IO_DIR_ERR/* $BASEDIR/stderr/.
+
+/bin/rm -rf $TMP_IO_DIR
+
