@@ -1,4 +1,8 @@
-AutoDockWrapper
-===============
+Build
+=====
 
-Wrapper scripts to run auto dock under Panfish using Sun Grid Engine
+mvn clean package assembly:single
+
+Run
+===
+
