@@ -4,8 +4,14 @@ import joptsimple.OptionParser;
 
 import java.io.File;
 import joptsimple.OptionSet;
+import edu.ucsd.crbs.autodockwrapper.io.*;
+import edu.ucsd.crbs.autodockwrapper.job.JobGenerator;
+import edu.ucsd.crbs.autodockwrapper.job.JobGeneratorImpl;
+import java.io.FileReader;
+import org.apache.commons.io.IOUtils;
 
 /**
+ * PROTOTYPE CODE!!!!!!!!!!!!!!
  * This is the main entry class for AutoDockWrapper. AutoDockWrapper is a
  * program that generates Auto Dock Vina jobs and optionally will run them on
  * HPC compute resources via Panfish.
@@ -19,6 +25,10 @@ public class App {
     public static final String OUTPUT_ARG = "outputjobdir";
     public static final String HELP_ARG = "h";
 
+    public static final String DEFAULT_ARGS = "--center_x 41.1100 --center_y 34.9382 --center_z 35.8160 --size_x 25.0000 --size_y 25.0000 --size_z 25.0000 --cpu 2";
+    public static final String DEFAULT_VINA_BIN = "/home/churas/bin/autodock_vina_1_1_2/bin/vina";
+    
+    
     public static void main(String[] args) {
         try {
             System.out.println("AutoDockWrapper");
@@ -56,11 +66,35 @@ public class App {
             System.out.println(ligandFile.getAbsolutePath());
             System.out.println(receptorFile.getAbsolutePath());
             
+            //create the job directory
+            JobDirCreator jdc = getJobDirCreator();
+            jdc.createJobDirectories(outputJobDir);
             
+            
+            //write out the autodock.sh file into outputjobdir
+            AutoDockScriptCreator adsc = getAutoDockScriptCreator();
+            adsc.createAutoDockScript(outputJobDir, DEFAULT_ARGS,DEFAULT_VINA_BIN);
+            
+            //generate jobs
+            JobGenerator jg = getJobGenerator();
+            jg.createJobs(outputJobDir, IOUtils.readLines(new FileReader(ligandFile)), 
+                    IOUtils.readLines(new FileReader(receptorFile)));
             
         } catch (Exception ex) {
             ex.printStackTrace();
             System.exit(2);
         }
+    }
+    
+    public static JobDirCreator getJobDirCreator(){
+        return new JobDirCreatorImpl();
+    }
+    
+    public static AutoDockScriptCreator getAutoDockScriptCreator(){
+        return new AutoDockScriptCreatorImpl();
+    }
+    
+    public static JobGenerator getJobGenerator(){
+        return new JobGeneratorImpl();
     }
 }
