@@ -28,13 +28,13 @@ public class CompressInputDirTask implements Runnable {
     @Override
     public void run() {
         try {
-            System.out.println(Thread.currentThread().getId()+" Compressing "+_taskId+" and dir "+_inputsDir);
+            //System.out.println(Thread.currentThread().getId()+" Compressing "+_taskId+" and dir "+_inputsDir);
             CompressDirectory cd = new CompressDirectoryImpl();
             cd.compressDirectory(_taskId, _inputsDir);
            
-            System.out.println(Thread.currentThread().getId()+" sleeping 10 seconds before deleting files");
+            //System.out.println(Thread.currentThread().getId()+" sleeping 10 seconds before deleting files");
             
-            System.out.println(Thread.currentThread().getId()+" deleting "+_inputsDir+"/"+Integer.toString(_taskId));
+            //System.out.println(Thread.currentThread().getId()+" deleting "+_inputsDir+"/"+Integer.toString(_taskId));
             FileUtils.deleteDirectory(new File(_inputsDir+"/"+Integer.toString(_taskId)));
             
         }
