@@ -8,6 +8,7 @@ import edu.ucsd.crbs.autodockwrapper.io.*;
 import edu.ucsd.crbs.autodockwrapper.job.JobGenerator;
 import edu.ucsd.crbs.autodockwrapper.job.JobGeneratorImpl;
 import java.io.FileReader;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 
 /**
@@ -26,7 +27,7 @@ public class App {
     public static final String HELP_ARG = "h";
 
     public static final String DEFAULT_ARGS = "--center_x 41.1100 --center_y 34.9382 --center_z 35.8160 --size_x 25.0000 --size_y 25.0000 --size_z 25.0000 --cpu 2";
-    public static final String DEFAULT_VINA_BIN = "/home/churas/bin/autodock_vina_1_1_2/bin/vina";
+    public static final String DEFAULT_VINA_BIN = "$PANFISH_BASEDIR/home/churas/bin/autodock_vina_1_1_2/bin/vina";
     
     
     public static void main(String[] args) {
@@ -62,9 +63,7 @@ public class App {
             File receptorFile =(File)optionSet.valueOf(RECEPTORS_ARG);
             String outputJobDir = (String)optionSet.valueOf(OUTPUT_ARG);
             
-            System.out.println(outputJobDir);
-            System.out.println(ligandFile.getAbsolutePath());
-            System.out.println(receptorFile.getAbsolutePath());
+            System.out.println("Generating job in directory: "+outputJobDir);
             
             //create the job directory
             JobDirCreator jdc = getJobDirCreator();
@@ -79,6 +78,7 @@ public class App {
             JobGenerator jg = getJobGenerator();
             jg.createJobs(outputJobDir, IOUtils.readLines(new FileReader(ligandFile)), 
                     IOUtils.readLines(new FileReader(receptorFile)));
+            
             
         } catch (Exception ex) {
             ex.printStackTrace();
