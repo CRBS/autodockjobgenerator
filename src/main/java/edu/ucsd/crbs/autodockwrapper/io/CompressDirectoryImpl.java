@@ -4,6 +4,7 @@
  */
 package edu.ucsd.crbs.autodockwrapper.io;
 
+import edu.ucsd.crbs.autodockwrapper.Constants;
 import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -14,6 +15,8 @@ import java.util.zip.GZIPOutputStream;
 import java.io.BufferedOutputStream;
 
 import org.kamranzafar.jtar.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -21,26 +24,29 @@ import org.kamranzafar.jtar.*;
  */
 public class CompressDirectoryImpl implements CompressDirectory {
 
+    final static Logger logger = LoggerFactory.getLogger(CompressDirectoryImpl.class);
+    
     static final int BUFFER = 8092;
+    
     
     @Override
     public void compressDirectory(int taskId, final String inputsDirectory) throws IOException {
 
-
-        String destinationPath = inputsDirectory+"/"+Integer.toString(taskId)+".tar.gz";
+        String sourceDir = inputsDirectory+File.separator+Integer.toString(taskId);
+        
+        String destinationPath = sourceDir+Constants.TAR_GZ_SUFFIX;
 
         BufferedOutputStream out = new BufferedOutputStream(new FileOutputStream(destinationPath));
         GZIPOutputStream gout = new GZIPOutputStream(out);
         TarOutputStream tos = new TarOutputStream(gout);
         
-        tarFolder("",inputsDirectory+"/"+Integer.toString(taskId),tos);
+        logger.debug("Compressing path {}",sourceDir);
+        
+        tarFolder("",sourceDir,tos);
         tos.flush();
         tos.close();
         gout.close();
         out.close();
-        
-        
-
     }
 
     
@@ -55,7 +61,7 @@ public class CompressDirectoryImpl implements CompressDirectory {
             files[0] = f.getName();
         }
 
-        parent = ((parent == null) ? (f.isFile()) ? "" : f.getName() + "/" : parent + f.getName() + "/");
+        parent = ((parent == null) ? (f.isFile()) ? "" : f.getName() + File.separator : parent + f.getName() + File.separator);
 
         for (int i = 0; i < files.length; i++) {
             File fe = f;
@@ -70,7 +76,7 @@ public class CompressDirectoryImpl implements CompressDirectory {
                 if (fl != null && fl.length != 0) {
                     tarFolder(parent, fe.getPath(), out);
                 } else {
-                    TarEntry entry = new TarEntry(fe, parent + files[i] + "/");
+                    TarEntry entry = new TarEntry(fe, parent + files[i] + File.separator);
                     out.putNextEntry(entry);
                 }
                 continue;
