@@ -7,6 +7,7 @@ package edu.ucsd.crbs.autodockwrapper.job;
 import edu.ucsd.crbs.autodockwrapper.io.CompressDirectory;
 import edu.ucsd.crbs.autodockwrapper.io.CompressDirectoryImpl;
 import edu.ucsd.crbs.autodockwrapper.io.JobDirCreatorImpl;
+import edu.ucsd.crbs.autodockwrapper.Constants;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
@@ -18,18 +19,16 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import org.apache.commons.io.FileUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * PROTOTYPE CODE!!!!!!!!!!!!!!
  * @author churas
  */
 public class JobGeneratorImpl implements JobGenerator{
-
-    public static final int SUB_JOBS_PER_JOB = 400;
     
-    public static final String LIGAND_INPUTS = "inputs"+File.separator+"ligands"+File.separator;
-    public static final String RECEPTOR_INPUTS = "inputs"+File.separator+"receptors"+File.separator;
-    
+    final static Logger logger = LoggerFactory.getLogger(JobGeneratorImpl.class);
     
     @Override
     public void createJobs(final String outputJobDir,List<String> ligands, List<String> receptors) throws IOException {
@@ -43,12 +42,12 @@ public class JobGeneratorImpl implements JobGenerator{
         
         //Create a threadpool that is 75% size of number of processors on system
         //with a minimum size of 1.
-        int threadPoolSize = (int)Math.round((double)Runtime.getRuntime().availableProcessors()*0.75);
+        int threadPoolSize = (int)Math.round((double)Runtime.getRuntime().availableProcessors()*
+                                              Constants.PERCENT_OF_CORES_TO_USE_FOR_COMPRESSION);
         if (threadPoolSize < 1){
             threadPoolSize = 1;
         }
-        System.out.println("Creating threadpool size of "+threadPoolSize+" to compress all the input folders");
-        
+        logger.debug("Creating threadpool size of {} to compress all the input directories",threadPoolSize);
         ExecutorService es = Executors.newFixedThreadPool(threadPoolSize);
         
         File sourceReceptorFile;
@@ -59,54 +58,90 @@ public class JobGeneratorImpl implements JobGenerator{
         //create the first task directory
         File inputsDir = createTaskInputsDir(outputJobDir,taskId);
         
-        String relativeLigandsInputsDir = "inputs/"+Integer.toString(taskId)+"/ligands/";
-        String relativeReceptorsInputsDir = "inputs/"+Integer.toString(taskId)+"/receptors/";
+        String relativeLigandsInputsDir = Constants.INPUTS_DIR_NAME+
+                                          File.separator+
+                                          Integer.toString(taskId)+
+                                          File.separator+
+                                          Constants.LIGANDS_DIR_NAME+
+                                          File.separator;
         
-                        
-        String relativeOutputsDir = "outputs"+File.separator+Integer.toString(taskId);
+        String relativeReceptorsInputsDir = Constants.INPUTS_DIR_NAME+
+                                            File.separator+
+                                            Integer.toString(taskId)+
+                                            File.separator+
+                                            Constants.RECEPTORS_DIR_NAME+
+                                            File.separator;
         
         BufferedWriter bw = createConfigFile(inputsDir.getAbsolutePath(),taskId);
         
         long totalNumberSubJobs = receptors.size()*ligands.size();
         
-        long numberOfBatchedJobs = Math.round(totalNumberSubJobs/SUB_JOBS_PER_JOB)+1;
-        
-        System.out.println("Generating "+numberOfBatchedJobs+" batch jobs containing "+totalNumberSubJobs+" sub jobs.");
-        System.out.println("Please be patient this could take a while.  Each '.' is a batched job");
+        long numberOfBatchedJobs = Math.round(totalNumberSubJobs/Constants.SUB_JOBS_PER_JOB)+1;
+
+        logger.info("Generating {} batch jobs containing {} sub jobs",numberOfBatchedJobs,totalNumberSubJobs);
         
         for (String receptor : receptors){
             sourceReceptorFile = new File(receptor);
-            destReceptorFile = new File(inputsDir.getAbsolutePath()+"/receptors/"+sourceReceptorFile.getName());
+            destReceptorFile = new File(inputsDir.getAbsolutePath()+
+                                        File.separator+
+                                        Constants.RECEPTORS_DIR_NAME+
+                                        File.separator+
+                                        sourceReceptorFile.getName());
             
             for (String ligand : ligands){
                 
                 sourceLigandFile = new File(ligand);
-                destLigandFile = new File(inputsDir.getAbsolutePath()+"/ligands/"+sourceLigandFile.getName());
+                destLigandFile = new File(inputsDir.getAbsolutePath()+
+                                          File.separator+
+                                          Constants.LIGANDS_DIR_NAME+
+                                          File.separator+
+                                          sourceLigandFile.getName());
+                
                 copyFileIfDoesNotExist(sourceReceptorFile,destReceptorFile);
                 copyFileIfDoesNotExist(sourceLigandFile,destLigandFile);
                 
-                bw.write(Integer.toString(subJobCount)+":::--ligand "+relativeLigandsInputsDir+destLigandFile.getName()+
-                        " --receptor "+relativeReceptorsInputsDir+destReceptorFile.getName()+"\n");
+                bw.write(Integer.toString(subJobCount)+
+                         Constants.CONFIG_SUBTASK_ID_DELIM+
+                         Constants.LIGANDS_FLAG+relativeLigandsInputsDir+
+                          destLigandFile.getName()+
+                         Constants.RECEPTORS_FLAG+relativeReceptorsInputsDir+
+                         destReceptorFile.getName()+Constants.NEW_LINE);
 
                 subJobCount++;
                 
-                if (subJobCount >= SUB_JOBS_PER_JOB){
+                if (subJobCount >= Constants.SUB_JOBS_PER_JOB){
                     
-                    System.out.print(".");
                     //need to tar up current inputs/# folder
                     bw.close();
-                    
+                    logger.debug("Completed creation of new task: {}",taskId);
                     //tar up path
-                    compressTasks.add(es.submit(new CompressInputDirTask(taskId,outputJobDir+"/inputs")));
+                    compressTasks.add(es.submit(new CompressInputDirTask(taskId,
+                                                outputJobDir+File.separator+
+                                                Constants.INPUTS_DIR_NAME)));
                     
                     taskId++;
                     
                     //create new inputs folder
                     inputsDir = createTaskInputsDir(outputJobDir,taskId);
-                    relativeLigandsInputsDir = "inputs/"+Integer.toString(taskId)+"/ligands/";
-                    relativeReceptorsInputsDir = "inputs/"+Integer.toString(taskId)+"/receptors/";
-                    relativeOutputsDir = "outputs"+File.separator+Integer.toString(taskId);
-                    destReceptorFile = new File(inputsDir.getAbsolutePath()+"/receptors/"+sourceReceptorFile.getName());
+                    relativeLigandsInputsDir = Constants.INPUTS_DIR_NAME+
+                                               File.separator+
+                                               Integer.toString(taskId)+
+                                               File.separator+
+                                               Constants.LIGANDS_DIR_NAME+
+                                               File.separator;
+                    
+                    relativeReceptorsInputsDir = Constants.INPUTS_DIR_NAME+
+                                                 File.separator+
+                                                 Integer.toString(taskId)+
+                                                 File.separator+
+                                                 Constants.RECEPTORS_DIR_NAME+
+                                                 File.separator;
+                    
+                    destReceptorFile = new File(inputsDir.getAbsolutePath()+
+                                                File.separator+
+                                                Constants.RECEPTORS_DIR_NAME+
+                                                File.separator+
+                                                sourceReceptorFile.getName());
                     subJobCount = 1;
                     
                     bw = createConfigFile(inputsDir.getAbsolutePath(),taskId);
@@ -116,20 +151,21 @@ public class JobGeneratorImpl implements JobGenerator{
         }
         bw.close();
         //tar up path
-        compressTasks.add(es.submit(new CompressInputDirTask(taskId,outputJobDir+"/inputs")));
-        System.out.println("\nWaiting for all the tasks compressing input directories to finish.");
-        System.out.println("This could also take a while.");
+        compressTasks.add(es.submit(new CompressInputDirTask(taskId,outputJobDir+
+                                    File.separator+Constants.INPUTS_DIR_NAME)));
+        
+        logger.debug("Waiting for all the tasks compressing input directories to finish.");
         
         removeCompletedTasks(compressTasks);
         
         while(compressTasks.size() > 0){
-        
-            System.out.println("Looks like there are still:  "+compressTasks.size()+" tasks to complete.  Sleeping 20 seconds");
+
+            logger.debug("{} directory compression tasks remain.  Sleeping 20 seconds",compressTasks.size());
             try {
                 Thread.sleep(20000);
             }
             catch(Exception ex){
-                
+                logger.debug("Sleep interrupted exception caught",ex);
             }
             removeCompletedTasks(compressTasks);
         }
@@ -150,9 +186,9 @@ public class JobGeneratorImpl implements JobGenerator{
     
     private File createTaskInputsDir(final String outputJobDir,int taskId) throws IOException{
         
-        File inputsDir = new File(outputJobDir+File.separator+JobDirCreatorImpl.INPUTS_DIR_NAME+File.separator+Integer.toString(taskId));
-        File ligandsDir = new File(inputsDir.getAbsoluteFile()+File.separator+"ligands");
-        File receptorsDir = new File(inputsDir.getAbsoluteFile()+File.separator+"receptors");
+        File inputsDir = new File(outputJobDir+File.separator+Constants.INPUTS_DIR_NAME+File.separator+Integer.toString(taskId));
+        File ligandsDir = new File(inputsDir.getAbsoluteFile()+File.separator+Constants.LIGANDS_DIR_NAME);
+        File receptorsDir = new File(inputsDir.getAbsoluteFile()+File.separator+Constants.RECEPTORS_DIR_NAME);
         
         FileUtils.forceMkdir(ligandsDir);
         FileUtils.forceMkdir(receptorsDir);
@@ -168,7 +204,7 @@ public class JobGeneratorImpl implements JobGenerator{
     
     private BufferedWriter createConfigFile(final String inputsDir,int taskId) throws IOException{
         
-        BufferedWriter bw = new BufferedWriter(new FileWriter(inputsDir+File.separator+Integer.toString(taskId)+".autodock.sh.config"));
+        BufferedWriter bw = new BufferedWriter(new FileWriter(inputsDir+File.separator+Integer.toString(taskId)+Constants.AUTO_DOCK_CONFIG_SUFFIX));
         return bw;
     }
     
