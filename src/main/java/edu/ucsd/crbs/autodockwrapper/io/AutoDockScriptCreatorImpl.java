@@ -4,13 +4,15 @@
  */
 package edu.ucsd.crbs.autodockwrapper.io;
 
+import edu.ucsd.crbs.autodockwrapper.Constants;
 import java.io.BufferedWriter;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.List;
-
 import org.apache.commons.io.IOUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * PROTOTYPE CODE!!!!!!!!!!!!!!
@@ -18,29 +20,30 @@ import org.apache.commons.io.IOUtils;
  */
 public class AutoDockScriptCreatorImpl implements AutoDockScriptCreator {
 
-     public static final String AUTODOCK_TEMPLATE = "/autodock.sh.template";
-     public static final String VINA = "VINA";
-     public static final String ARGUMENTS = "ARGUMENTS";
-     public static final String AUTO_DOCK_SCRIPT = "autodock.sh";
+    final static Logger logger = LoggerFactory.getLogger(AutoDockScriptCreatorImpl.class);
     
     @Override
     public void createAutoDockScript(final String outputJobDir,final String arguments,
                                      final String pathToVina) throws IOException {
         
+        logger.debug("Loading auto dock template from class path: {}",Constants.AUTODOCK_TEMPLATE);
         //load script
-        List<String> scriptLines = IOUtils.readLines(Class.class.getResourceAsStream(AUTODOCK_TEMPLATE));
+        List<String> scriptLines = IOUtils.readLines(Class.class.getResourceAsStream(Constants.AUTODOCK_TEMPLATE));
 
-        String autoDockScript = outputJobDir+File.separator+AUTO_DOCK_SCRIPT;
+        String autoDockScript = outputJobDir+File.separator+
+                                Constants.AUTO_DOCK_SCRIPT;
 
         BufferedWriter bw = new BufferedWriter(new FileWriter(autoDockScript));
                         
         //fix the VINA and ARGUMENTS and save script
         for (String line : scriptLines){
-            if (line.startsWith(VINA)){
-                line = VINA+"=\""+pathToVina+"\"";
+            if (line.startsWith(Constants.VINA)){
+                line = Constants.VINA+"=\""+pathToVina+"\"";
+                logger.debug("Replacing line starting with: {} and setting to: {}",Constants.VINA,line);
             }
-            else if (line.startsWith(ARGUMENTS)){
-                line = ARGUMENTS+"=\""+arguments+"\"";
+            else if (line.startsWith(Constants.ARGUMENTS)){
+                line = Constants.ARGUMENTS+"=\""+arguments+"\"";
+                 logger.debug("Replacing line starting with: {} and setting to: {}",Constants.ARGUMENTS,line);
             }
             bw.write(line);
             bw.newLine();
