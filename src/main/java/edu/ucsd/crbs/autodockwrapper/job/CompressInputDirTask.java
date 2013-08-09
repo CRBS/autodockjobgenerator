@@ -9,6 +9,8 @@ import edu.ucsd.crbs.autodockwrapper.io.CompressDirectoryImpl;
 import java.io.File;
 import java.io.IOException;
 import org.apache.commons.io.FileUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  *
@@ -16,6 +18,7 @@ import org.apache.commons.io.FileUtils;
  */
 public class CompressInputDirTask implements Runnable {
 
+    final static Logger logger = LoggerFactory.getLogger(CompressInputDirTask.class);
     
     private int _taskId;
     private String _inputsDir;
@@ -28,21 +31,19 @@ public class CompressInputDirTask implements Runnable {
     @Override
     public void run() {
         try {
-            //System.out.println(Thread.currentThread().getId()+" Compressing "+_taskId+" and dir "+_inputsDir);
+            logger.debug("Compressing directory for task {}",_taskId);
             CompressDirectory cd = new CompressDirectoryImpl();
             cd.compressDirectory(_taskId, _inputsDir);
            
-            //System.out.println(Thread.currentThread().getId()+" sleeping 10 seconds before deleting files");
-            
-            //System.out.println(Thread.currentThread().getId()+" deleting "+_inputsDir+"/"+Integer.toString(_taskId));
-            FileUtils.deleteDirectory(new File(_inputsDir+"/"+Integer.toString(_taskId)));
-            
+            logger.debug("Deleting directory for task {}",_taskId);
+
+            FileUtils.deleteDirectory(new File(_inputsDir+File.separator+Integer.toString(_taskId)));
         }
         catch(IOException io){
-            System.err.println(Thread.currentThread().getId()+" Unable to compress: "+_inputsDir+" "+io.getMessage());
+            logger.error("Caught IOException, Unable to compress",io);
         }
         catch(Exception ex){
-            System.err.println(Thread.currentThread().getId()+" Caught exception"+ex.getMessage());
+            logger.error("Caught Exception, Unable to compress",ex);
         }
     }
     
