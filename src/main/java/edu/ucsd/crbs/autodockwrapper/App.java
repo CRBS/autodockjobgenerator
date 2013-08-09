@@ -8,8 +8,10 @@ import edu.ucsd.crbs.autodockwrapper.io.*;
 import edu.ucsd.crbs.autodockwrapper.job.JobGenerator;
 import edu.ucsd.crbs.autodockwrapper.job.JobGeneratorImpl;
 import java.io.FileReader;
-import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * PROTOTYPE CODE!!!!!!!!!!!!!!
@@ -21,6 +23,8 @@ import org.apache.commons.io.IOUtils;
  */
 public class App {
 
+    final static Logger logger = LoggerFactory.getLogger(App.class);
+    
     public static final String LIGANDS_ARG = "ligands";
     public static final String RECEPTORS_ARG = "receptors";
     public static final String OUTPUT_ARG = "outputjobdir";
@@ -32,7 +36,6 @@ public class App {
     
     public static void main(String[] args) {
         try {
-            System.out.println("AutoDockWrapper");
 
             OptionParser parser = new OptionParser() {
 
@@ -54,7 +57,7 @@ public class App {
             if (!optionSet.has(LIGANDS_ARG) || 
                 !optionSet.has(RECEPTORS_ARG) ||
                 !optionSet.has(OUTPUT_ARG)){
-                System.err.println("Missing one or more required arguments.\n");
+                logger.error("Missing one or more required arguments");
                 parser.printHelpOn(System.err);
                 System.exit(1);
             }
@@ -63,7 +66,7 @@ public class App {
             File receptorFile =(File)optionSet.valueOf(RECEPTORS_ARG);
             String outputJobDir = (String)optionSet.valueOf(OUTPUT_ARG);
             
-            System.out.println("Generating job in directory: "+outputJobDir);
+            logger.info("Generating job in directory: {}",outputJobDir);
             
             //create the job directory
             JobDirCreator jdc = getJobDirCreator();
@@ -81,7 +84,7 @@ public class App {
             
             
         } catch (Exception ex) {
-            ex.printStackTrace();
+            logger.error("Caught Exception.  Exiting..", ex);
             System.exit(2);
         }
     }
