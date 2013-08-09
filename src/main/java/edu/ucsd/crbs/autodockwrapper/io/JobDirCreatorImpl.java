@@ -8,15 +8,18 @@ import java.io.File;
 import java.io.IOException;
 import org.apache.commons.io.FileUtils;
 
+import edu.ucsd.crbs.autodockwrapper.Constants;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * PROTOTYPE CODE!!!!!!!!!!!!!!
  * @author churas
  */
 public class JobDirCreatorImpl implements JobDirCreator {
 
-    public static final String INPUTS_DIR_NAME = "inputs";
-    public static final String OUTPUTS_DIR_NAME = "outputs";
-
+    final static Logger logger = LoggerFactory.getLogger(JobDirCreatorImpl.class);
+    
     /**
      * Creates directory specified by path argument and also creates
      * INPUTS_DIR_NAME and OUTPUTS_DIR_NAME subdirectories under that
@@ -26,9 +29,13 @@ public class JobDirCreatorImpl implements JobDirCreator {
      */
     @Override
     public void createJobDirectories(final String path) throws IOException {
-        File inputsDir = new File(path+File.separator+INPUTS_DIR_NAME);
+        
+        File inputsDir = new File(path+File.separator+Constants.INPUTS_DIR_NAME);
+        logger.debug("Creating directory: {}",inputsDir.getAbsolutePath());
         FileUtils.forceMkdir(inputsDir);
-        File outputsDir = new File(path+File.separator+OUTPUTS_DIR_NAME);
+        File outputsDir = new File(path+File.separator+
+                                   Constants.OUTPUTS_DIR_NAME);
+        logger.debug("Creating directory: {}",outputsDir.getAbsolutePath());
         FileUtils.forceMkdir(outputsDir);
     }
     
