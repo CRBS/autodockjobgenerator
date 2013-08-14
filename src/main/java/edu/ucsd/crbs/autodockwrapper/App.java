@@ -7,7 +7,6 @@ import joptsimple.OptionSet;
 import edu.ucsd.crbs.autodockwrapper.io.*;
 import edu.ucsd.crbs.autodockwrapper.job.JobGenerator;
 import edu.ucsd.crbs.autodockwrapper.job.JobGeneratorImpl;
-import java.io.FileReader;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -15,10 +14,11 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
-import org.apache.commons.io.IOUtils;
+import joptsimple.OptionException;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 
 /**
  * This is the main entry class for AutoDockWrapper. AutoDockWrapper is a
@@ -39,6 +39,19 @@ import org.slf4j.LoggerFactory;
 public class App {
 
     final static Logger logger = LoggerFactory.getLogger(App.class);
+    
+    
+    public static final String PROGRAM_SUMMARY = "\nAutoDockWrapper generates grid enabled auto dock vina jobs\n";
+                                    
+        public static final String EXAMPLE_USAGE = "\n\nExample invocation:\n\n"
+            + "java -jar autodockwrapper.jar --ligands ~/ligandsdir --receptors ~/receptorsdir --outputjobdir ~/jobdir\n\n"
+            + "The above command would look for any *.pdbqt in ~/ligandsdir and look for any *.pdbqt in ~/receptorsdir and\n"
+            + "generate a job for every combination of ligand and receptor file.  These jobs would be batched for efficiency\n"
+            + "and invokable via the generated scripts autodock.sh and panfish_autodock.sh written under ~/jobdir.\n"
+            + "To reduce IO all input files are copied into ~/jobdir/inputs and stored in compressed\n"
+            + "tarballs which are uncompressed only when the job runs on the local storage of the compute\n"
+            + "node.\n";
+    
     
     static final String LIGANDS_ARG = "ligands";
     static final String RECEPTORS_ARG = "receptors";
@@ -65,17 +78,29 @@ public class App {
             OptionParser parser = new OptionParser() {
 
                 {
-                    accepts(LIGANDS_ARG).withRequiredArg().ofType(File.class).describedAs("list of ligand files");
-                    accepts(RECEPTORS_ARG).withRequiredArg().ofType(File.class).describedAs("list of receptor files");
-                    accepts(OUTPUT_ARG).withRequiredArg().ofType(String.class).describedAs("Output Job Directory");
-                    accepts(HELP_ARG, "show help").forHelp();
+                    accepts(LIGANDS_ARG,"(Required) either directory containing ligand files or file listing ligand files").withRequiredArg().ofType(File.class).describedAs("file or directory");
+                    accepts(RECEPTORS_ARG,"(Required) either directory containing receptor files or file listing receptor files").withRequiredArg().ofType(File.class).describedAs("file or directory");
+                    accepts(OUTPUT_ARG,"(Required) directory to write generated jobs").withRequiredArg().ofType(String.class).describedAs("directory");
+                    accepts(HELP_ARG, "Show help").forHelp();
                 }
             };
-
-            OptionSet optionSet = parser.parse(args);
+            OptionSet optionSet = null;
+            try {
+                optionSet = parser.parse(args);
+            }
+            catch(OptionException oe){
+                System.err.println();
+                System.err.println("There was an error parsing arguments: "+oe.getMessage());
+                System.err.println();
+                parser.printHelpOn(System.err);
+                System.exit(1);
+            }
 
             if (optionSet.has(HELP_ARG)) {
+                System.out.println(PROGRAM_SUMMARY);
                 parser.printHelpOn(System.out);
+                
+                System.out.println(EXAMPLE_USAGE);
                 System.exit(0);
             }
             
@@ -107,12 +132,14 @@ public class App {
             padc.createPanfishAutoDockScript(outputJobDir);
             
             
+            FileListGenerator listGen = getFileListGenerator();
+            
             ExecutorService es = getExecutorService();
             List<Future> taskList = Collections.synchronizedList(new LinkedList<Future>());
             //generate jobs
             JobGenerator jg = getJobGenerator(es,taskList,outputJobDir, 
-                    IOUtils.readLines(new FileReader(ligandFile)), 
-                    IOUtils.readLines(new FileReader(receptorFile)));
+                    listGen.getFileList(ligandFile.getCanonicalPath()), 
+                    listGen.getFileList(receptorFile.getCanonicalPath()));
             
             long startTime = System.currentTimeMillis();
             taskList.add(es.submit(jg));
@@ -192,6 +219,9 @@ public class App {
         return Math.round(((double)numberCompleted/(double)totalCount)*100.0);
     }
     
+    static FileListGenerator getFileListGenerator(){
+        return new FileListGeneratorImpl();
+    }
     
     static JobDirCreator getJobDirCreator(){
         return new JobDirCreatorImpl();
