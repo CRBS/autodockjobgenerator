@@ -134,6 +134,32 @@ public class App {
             
             es.shutdown();
             
+            System.out.println("Job generation complete.  Total Time: "+
+                     Math.round((double)(System.currentTimeMillis() - startTime)/1000.0)+
+                    " seconds.");
+            File outputJobDirFile = new File(outputJobDir);
+            System.out.println("Job created in: "+
+                    outputJobDirFile.getCanonicalPath());
+            System.out.println("Be sure to adjust VINA and ARGUMENTS lines in: "+
+                    outputJobDirFile.getCanonicalPath()+File.separator+
+                    Constants.AUTO_DOCK_SCRIPT+ " file before running");
+            
+            System.out.println("To run via panfish invoke:");
+            
+            System.out.println("cd "+outputJobDirFile.getCanonicalPath()+
+                               ";./panfish_autodock.sh");
+            
+            System.out.println();
+            
+            System.out.println("To run directly in serial fashion invoke: ");
+            
+            System.out.println("cd "+outputJobDirFile.getCanonicalPath()+
+                    ";for Y in `seq 1 "+Long.toString(totalJobs)+
+                    "` ; do echo \"Running job $Y\";export SGE_TASK_ID=$Y;./autodock.sh ; done");
+                    
+            
+            
+            
         } catch (Exception ex) {
             logger.error("Caught Exception.  Exiting..", ex);
             System.exit(2);
@@ -152,7 +178,14 @@ public class App {
         if (numberCompleted <= 0){
             return "Unknown time remaining.";
         }
-        return Long.toString(Math.round((((double)(curTime-startTime)*(double)totalCount)/(double)numberCompleted)/1000.0))+" seconds remaining.";
+        long elapsedTime = curTime - startTime;
+        
+        //using time elapsed and # jobs completed get a total time estimate.
+        double estTimeMillis = (double)(elapsedTime*totalCount)/(double)numberCompleted;
+        
+        //use total time estimate to calculate time remaining
+        double estMillisRemaining = estTimeMillis*(((double)totalCount-(double)numberCompleted)/(double)totalCount);
+        return Long.toString(Math.round(estMillisRemaining/1000.0))+" seconds remaining.";
     }
     
     static long getPercentComplete(long numberCompleted, long totalCount){
