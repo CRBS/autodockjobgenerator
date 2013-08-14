@@ -8,6 +8,8 @@ import java.io.File;
  */
 public class Constants {
     
+    
+    public static final String PDBQT_SUFFIX = "pdbqt";
     /**
      * New line character to use.  This is hard coded cause we don't want to 
      * use non unix new line in tar files.
