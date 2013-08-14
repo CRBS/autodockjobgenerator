@@ -5,13 +5,14 @@
 package edu.ucsd.crbs.autodockwrapper.job;
 
 import java.io.IOException;
-import java.util.List;
 
 /**
  * PROTOTYPE CODE!!!!!!!!!!!!!!
  * @author churas
  */
-public interface JobGenerator {
+public interface JobGenerator extends java.lang.Runnable {
     
-    public void createJobs(final String outputJobDir,List<String> ligands,List<String> receptors) throws IOException;
+    public void createJobs() throws IOException;
+    
+    public long getTotalJobs();
 }
