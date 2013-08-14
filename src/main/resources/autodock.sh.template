@@ -12,7 +12,7 @@
 # The message is format of ERROR: (first argument passed to function)
 #
 function jobFailed {
-  echo "ERROR: $1" 1>&2
+  echo "ERROR:  (task ${SGE_TASK_ID})  $1" 1>&2
   exit 1
 }
 
@@ -20,7 +20,7 @@ function jobFailed {
 # This function outputs a warning message to standard error
 #
 function logWarning {
-  echo "WARNING: $1" 1>&2
+  echo "WARNING:  (task ${SGE_TASK_ID})  $1" 1>&2
 }
 
 #
@@ -28,7 +28,7 @@ function logWarning {
 # logMessage ($1 is message)
 #
 function logMessage {
-  echo "    $1"
+  echo "(task ${SGE_TASK_ID})    $1"
 }
 
 #
@@ -144,7 +144,7 @@ function copyInputsToScratch {
 #
 function logStartTime {
   START_TIME=`date +%s`
-  echo "$1 Start Time: $START_TIME"
+  echo "(task ${SGE_TASK_ID}) $1 Start Time: $START_TIME"
 }
 
 #
@@ -154,10 +154,10 @@ function logStartTime {
 function logEndTime {
   END_TIME=`date +%s`
   DURATION=`echo "$END_TIME-$2" | bc -l`
-  echo "$1 End Time: $END_TIME Duration: $DURATION Exit Code: $3"
+  echo "(task ${SGE_TASK_ID}) $1 End Time: $END_TIME Duration: $DURATION Exit Code: $3"
 }
 
-ARGUMENTS="--center_x 41.1100 --center_y 34.9382 --center_z 35.8160 --size_x 25.0000 --size_y 25.0000 --size_z 25.0000 --cpu 16"
+ARGUMENTS="--center_x 41.1100 --center_y 34.9382 --center_z 35.8160 --size_x 25.0000 --size_y 25.0000 --size_z 25.0000 --cpu 2"
 
 ###########################################################
 #
