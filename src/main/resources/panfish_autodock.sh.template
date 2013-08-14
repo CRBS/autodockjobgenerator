@@ -1,0 +1,98 @@
+#!/bin/sh
+
+
+function log_start {
+  echo ""
+  echo "$1 (iteration $2) start time: `date +%s`"
+  echo ""
+}
+
+
+
+function log_end {
+  echo ""
+  echo "$1 (iteration $2) end time: `date +%s`"
+  echo ""
+}
+
+echo "This program $0 will use panfish to run"
+echo "Auto dock vina jobs.  The script will"
+echo "first assess the jobs to be run and"
+echo "output the tasks it will perform"
+echo "You will then have a few seconds"
+echo "to cancel the operation with"
+echo "Ctrl-C"
+
+# This program will chum the job directory 
+# then run the jobs 
+# and finally land the results
+
+SCRIPT_DIR=`dirname $0`
+
+cd $SCRIPT_DIR
+
+CURDIR=`pwd -P`
+
+if [ ! -d "$CURDIR/inputs" ] ; then
+  echo "$CURDIR/inputs does not exist"
+  exit 1
+fi
+
+if [ ! -d "$CURDIR/outputs" ] ; then
+  echo "$CURDIR/outputs does not exist"
+  exit 1
+fi
+
+
+# lets verify autodock.sh exists
+if [ ! -x "$CURDIR/autodock.sh" ] ; then
+  echo "$CURDIR/autodock.sh does not exist or is not executable"
+  exit 1
+fi
+
+# first lets find out how many jobs to run
+NUM_JOBS=`find $CURDIR/inputs -name "*.gz" -type f | wc -l`
+
+echo "Number of jobs to run: $NUM_JOBS"
+
+echo "Each job takes 2-8 hours to run so I'll let you do the math"
+
+echo "Sleeping 10 seconds before starting.  If you don't want to"
+echo "run this now is the time to hit Ctrl-c"
+
+sleep 10
+
+echo "Okay you had your chance..."
+
+
+log_start "Uploading data via panfishchum" 1
+
+panfishchum --path $CURDIR --exclude 'outputs/*' --exclude 'chum*.out' --exclude 'cast*.out' --listchummed > $CURDIR/chum.out 2>&1
+
+if [ $? != 0 ] ; then
+  echo "Error running panfishchum see output in $CURDIR/chum.out"
+  exit 1
+fi
+
+CHUMMEDLIST=`cat $CURDIR/chum.out | egrep "^chummed.clusters" | sed "s/^chummed.clusters=//"`
+
+log_end "Uploading data via panfishchum" 1
+
+echo "Cluster list: $CHUMMEDLIST"
+
+log_start "Running jobs" 1
+
+panfishcast -sync y -t 1-${NUM_JOBS} -q $CHUMMEDLIST -N autodock --writeoutputlocal -e $CURDIR/panfish/err/\$JOB_ID\.\$TASK_ID.err -e $CURDIR/panfish/out/\$JOB_ID\.\$TASK_ID.out $CURDIR/autodock.sh > $CURDIR/cast.out
+
+log_end "Running jobs" 1
+
+log_start "Downloading results" 1
+
+panfishland --path $CURDIR -q $CHUMMEDLIST --exclude 'inputs/*' > $CURDIR/land.out 2>&1
+
+if [ $? != 0 ] ; then
+  echo "Error downloading data.  See $CURDIR/land.out for more information"
+  exit 1
+fi
+
+log_end "Downloading results" 1
