@@ -82,7 +82,7 @@ echo "Cluster list: $CHUMMEDLIST"
 
 log_start "Running jobs" 1
 
-panfishcast -sync y -t 1-${NUM_JOBS} -q $CHUMMEDLIST -N autodock --writeoutputlocal -e $CURDIR/panfish/err/\$JOB_ID\.\$TASK_ID.err -e $CURDIR/panfish/out/\$JOB_ID\.\$TASK_ID.out $CURDIR/autodock.sh > $CURDIR/cast.out
+panfishcast -sync y -t 1-${NUM_JOBS} -q $CHUMMEDLIST -N autodock > $CURDIR/cast.out
 
 log_end "Running jobs" 1
 
