@@ -88,7 +88,7 @@ log_end "Running jobs" 1
 
 log_start "Downloading results" 1
 
-panfishland --path $CURDIR -q $CHUMMEDLIST --exclude 'inputs/*' > $CURDIR/land.out 2>&1
+panfishland --path $CURDIR --cluster $CHUMMEDLIST --exclude 'inputs/*' > $CURDIR/land.out 2>&1
 
 if [ $? != 0 ] ; then
   echo "Error downloading data.  See $CURDIR/land.out for more information"
