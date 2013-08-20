@@ -108,7 +108,7 @@ public class JobGeneratorImpl implements JobGenerator,Runnable{
         
         long totalNumberSubJobs = _receptors.size()*_ligands.size();
         
-        long numberOfBatchedJobs = Math.round(totalNumberSubJobs/Constants.SUB_JOBS_PER_JOB)+1;
+        long numberOfBatchedJobs = Math.round(Math.ceil(totalNumberSubJobs/Constants.SUB_JOBS_PER_JOB));
 
         setTotalJobs(numberOfBatchedJobs);
         
@@ -143,7 +143,7 @@ public class JobGeneratorImpl implements JobGenerator,Runnable{
 
                 subJobCount++;
                 
-                if (subJobCount >= Constants.SUB_JOBS_PER_JOB){
+                if (subJobCount > Constants.SUB_JOBS_PER_JOB){
                     
                     //need to tar up current inputs/# folder
                     bw.close();
@@ -185,10 +185,19 @@ public class JobGeneratorImpl implements JobGenerator,Runnable{
             }
         }
         bw.close();
-        
-        //tar up last path
-        _taskList.add(_es.submit(new CompressInputDirTask(compressor,taskId,_outputJobDir+
-                                    File.separator+Constants.INPUTS_DIR_NAME)));
+
+        //If there are any jobs in the last task compress the folder otherwise
+        //delete the folder
+        if (subJobCount > 1){
+            //tar up last path
+            _taskList.add(_es.submit(new CompressInputDirTask(compressor,taskId,_outputJobDir+
+                                        File.separator+Constants.INPUTS_DIR_NAME)));
+        }
+        else {
+            
+            logger.debug("No jobs in the last task.  Deleting path: {}",_outputJobDir+File.separator+Constants.INPUTS_DIR_NAME+File.separator+Integer.toString(taskId));
+            FileUtils.deleteDirectory(new File(_outputJobDir+File.separator+Constants.INPUTS_DIR_NAME+File.separator+Integer.toString(taskId)));
+        }
     }
     
     @Override
