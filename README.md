@@ -1,4 +1,3 @@
-
 AutoDockWrapper is a command line java application that generates Auto Dock jobs from a set
 of ligands and receptors that can be run directly or via Panfish on compute clusters.  
 
@@ -26,21 +25,21 @@ java -jar target/autodockwrapper-1.0-SNAPSHOT-jar-with-dependencies.jar -h
 The above should output something similar to the following:
 
 
-Missing outputjobdir which is a required argument
-Option                                 Description                           
-------                                 -----------                           
--h                                     Show help                             
---ligands <File: file or directory>    (Required) either directory containing
-                                         ligand files or file listing ligand 
-                                         files                               
---outputjobdir <directory>             (Required) directory to write         
-                                         generated jobs                      
---receptors <File: file or directory>  (Required) either directory containing
-                                         receptor files or file listing      
-                                         receptor files                      
---subjobs <Integer: # subjobs>         Number of subjobs to batch per job.   
-                                         Default 400                         
---usetestdata                          Generates a small test job using test 
+ Missing outputjobdir which is a required argument
+ Option                                 Description                           
+ ------                                 -----------                           
+ -h                                     Show help                             
+ --ligands <File: file or directory>    (Required) either directory containing
+                                          ligand files or file listing ligand 
+                                          files                               
+ --outputjobdir <directory>             (Required) directory to write         
+                                          generated jobs                      
+ --receptors <File: file or directory>  (Required) either directory containing
+                                          receptor files or file listing      
+                                          receptor files                      
+ --subjobs <Integer: # subjobs>         Number of subjobs to batch per job.   
+                                          Default 400                         
+ --usetestdata                          Generates a small test job using test 
                                          data                                
 
 Example invocation:
