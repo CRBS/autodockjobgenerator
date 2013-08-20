@@ -86,24 +86,10 @@ public class Constants {
      * Directory name holding outputs for Auto dock jobs
      */
     public static final String OUTPUTS_DIR_NAME = "outputs";
-    
-    /**
-     * Directory name holding standard out files for each {@link #AUTO_DOCK_SCRIPT} job
-     */
-    public static final String OUT_DIR_NAME = "out";
-    
-    /**
-     * Directory name holding standard err files for each {@link #AUTO_DOCK_SCRIPT} job
-     */
-    public static final String ERR_DIR_NAME = "err";
-    
-    
-    public static final String OUT_DIR = OUTPUTS_DIR_NAME+File.separator+OUT_DIR_NAME;
-
-    public static final String ERR_DIR = OUTPUTS_DIR_NAME+File.separator+ERR_DIR_NAME;
-
-    
+        
     public static final String LIGANDS_INPUTS_DIR = INPUTS_DIR_NAME+File.separator+LIGANDS_DIR_NAME+File.separator;
+    
+    
     public static final String RECEPTORS_INPUTS_DIR = INPUTS_DIR_NAME+File.separator+RECEPTORS_DIR_NAME+File.separator;
     
     /**
