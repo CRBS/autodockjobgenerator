@@ -7,6 +7,7 @@ import joptsimple.OptionSet;
 import edu.ucsd.crbs.autodockwrapper.io.*;
 import edu.ucsd.crbs.autodockwrapper.job.JobGenerator;
 import edu.ucsd.crbs.autodockwrapper.job.JobGeneratorImpl;
+import java.io.FileWriter;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -15,6 +16,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import joptsimple.OptionException;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.IOUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -52,11 +55,13 @@ public class App {
             + "tarballs which are uncompressed only when the job runs on the local storage of the compute\n"
             + "node.\n";
     
-    
+    static final String USE_TEST_DATA = "usetestdata";
     static final String LIGANDS_ARG = "ligands";
     static final String RECEPTORS_ARG = "receptors";
     static final String OUTPUT_ARG = "outputjobdir";
+    static final String SUBJOBS_ARG = "subjobs";
     static final String HELP_ARG = "h";
+    static long THREAD_SLEEP_TIME = 20000;
 
     /**
      * The default arguments passed to Auto Dock jobs: {@value}
@@ -77,10 +82,12 @@ public class App {
 
             OptionParser parser = new OptionParser() {
 
-                {
+                {   
+                    accepts(USE_TEST_DATA,"Generates a small test job using test data");
                     accepts(LIGANDS_ARG,"(Required) either directory containing ligand files or file listing ligand files").withRequiredArg().ofType(File.class).describedAs("file or directory");
                     accepts(RECEPTORS_ARG,"(Required) either directory containing receptor files or file listing receptor files").withRequiredArg().ofType(File.class).describedAs("file or directory");
                     accepts(OUTPUT_ARG,"(Required) directory to write generated jobs").withRequiredArg().ofType(String.class).describedAs("directory");
+                    accepts(SUBJOBS_ARG,"Number of subjobs to batch per job.  Default 400").withRequiredArg().ofType(Integer.class).describedAs("# subjobs");
                     accepts(HELP_ARG, "Show help").forHelp();
                 }
             };
@@ -104,19 +111,74 @@ public class App {
                 System.exit(0);
             }
             
-            if (!optionSet.has(LIGANDS_ARG) || 
-                !optionSet.has(RECEPTORS_ARG) ||
-                !optionSet.has(OUTPUT_ARG)){
-                logger.error("Missing one or more required arguments");
+            File ligandFile;
+            File receptorFile;
+            
+            if (!optionSet.has(App.OUTPUT_ARG)){
+                System.err.println("Missing "+OUTPUT_ARG+" which is a required argument");
                 parser.printHelpOn(System.err);
                 System.exit(1);
             }
             
-            File ligandFile = (File)optionSet.valueOf(LIGANDS_ARG);
-            File receptorFile =(File)optionSet.valueOf(RECEPTORS_ARG);
             String outputJobDir = (String)optionSet.valueOf(OUTPUT_ARG);
             
-            logger.info("Generating job in directory: {}",outputJobDir);
+            if (!optionSet.has(App.USE_TEST_DATA)) {
+
+                //Set alternate batching if detected
+                if (optionSet.has(SUBJOBS_ARG)) {
+                    Integer val = (Integer) optionSet.valueOf(SUBJOBS_ARG);
+                    Constants.SUB_JOBS_PER_JOB = val.intValue();
+                    if (Constants.SUB_JOBS_PER_JOB <= 0) {
+                        System.err.println("# subjobs per job must be greater then 0");
+                        parser.printHelpOn(System.err);
+                        System.exit(1);
+                    }
+                }
+
+                if (!optionSet.has(LIGANDS_ARG)
+                        || !optionSet.has(RECEPTORS_ARG)) {
+                    logger.error("Missing one or more required arguments");
+                    parser.printHelpOn(System.err);
+                    System.exit(1);
+                }
+                ligandFile = (File)optionSet.valueOf(LIGANDS_ARG);
+                receptorFile =(File)optionSet.valueOf(RECEPTORS_ARG);
+            }
+            else {
+                //copy the test data from internal resource and set ligandFile
+                //and receptorFile to appropriate path
+                System.out.println("Flag "+App.USE_TEST_DATA+" set using TEST data!");
+                
+                String testDataDir = outputJobDir+File.separator+"testdata";
+                String testReceptorDir = testDataDir+File.separator+"receptor";
+                String testLigandDir = testDataDir+File.separator+"ligand";
+                FileUtils.forceMkdir(new File(testReceptorDir));
+                FileUtils.forceMkdir(new File(testLigandDir));
+                
+                FileWriter fw;
+                for (int i = 1 ; i < 3; i++){
+                    fw = new FileWriter(testReceptorDir+File.separator+Integer.toString(i)+".receptor.pdbqt");
+                    IOUtils.copy(Class.class.getResourceAsStream("/"+Integer.toString(i)+".receptor.pdbqt"), fw);
+                    fw.flush();
+                    fw.close();
+                }
+                
+
+                for (int i = 1; i < 5; i++){
+                    fw =  new FileWriter(testLigandDir+File.separator+Integer.toString(i)+".ligand.pdbqt");
+                    IOUtils.copy(Class.class.getResourceAsStream("/"+Integer.toString(i)+".ligand.pdbqt"), fw);
+                    fw.flush();
+                    fw.close();
+                }
+                
+                ligandFile = new File(testLigandDir);
+                receptorFile = new File(testReceptorDir);
+                Constants.SUB_JOBS_PER_JOB = 2;
+                THREAD_SLEEP_TIME = 1000;
+            }
+            
+            System.out.println("Generating job in directory: "+outputJobDir);
+            System.out.println("Batching: "+Constants.SUB_JOBS_PER_JOB+" sub jobs per job");
             
             //create the job directory
             JobDirCreator jdc = getJobDirCreator();
@@ -145,7 +207,7 @@ public class App {
             taskList.add(es.submit(jg));
             
             
-            threadSleep(20000);
+            threadSleep(THREAD_SLEEP_TIME);
             long totalJobs = jg.getTotalJobs();
             long percentComplete;
             
@@ -155,7 +217,7 @@ public class App {
             while(taskList.size() > 0){
                percentComplete = getPercentComplete(removeCount,totalJobs);
                System.out.println(percentComplete+"% ("+removeCount+" of "+totalJobs+") job(s) created.  "+estimatedTimeRemaining(removeCount,totalJobs,startTime));
-               threadSleep(20000);
+               threadSleep(THREAD_SLEEP_TIME);
                removeCount += removeCompletedTasks(taskList);
             }
             
@@ -167,22 +229,23 @@ public class App {
             File outputJobDirFile = new File(outputJobDir);
             System.out.println("Job created in: "+
                     outputJobDirFile.getCanonicalPath());
-            System.out.println("Be sure to adjust VINA and ARGUMENTS lines in: "+
+            System.out.println("Be sure to adjust "+Constants.VINA+" and "+Constants.ARGUMENTS+" lines in: "+
                     outputJobDirFile.getCanonicalPath()+File.separator+
                     Constants.AUTO_DOCK_SCRIPT+ " file before running");
             
             System.out.println("To run via panfish invoke:");
             
             System.out.println("cd "+outputJobDirFile.getCanonicalPath()+
-                               ";./panfish_autodock.sh");
+                               ";."+File.separator+Constants.PANFISH_AUTO_DOCK_SCRIPT);
             
             System.out.println();
             
             System.out.println("To run directly in serial fashion invoke: ");
             
+            //@todo if we are on windows this should be writing a different command
             System.out.println("cd "+outputJobDirFile.getCanonicalPath()+
                     ";for Y in `seq 1 "+Long.toString(totalJobs)+
-                    "` ; do echo \"Running job $Y\";export SGE_TASK_ID=$Y;./autodock.sh ; done");
+                    "` ; do echo \"Running job $Y\";export SGE_TASK_ID=$Y;."+File.separator+Constants.AUTO_DOCK_SCRIPT+" ; done");
                     
             
             
