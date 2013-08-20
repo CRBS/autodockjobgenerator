@@ -114,11 +114,11 @@ function run_jobs {
 
   if [ -e "$CURDIR/failed.jobs" ] ; then
     echo "$CURDIR/failed.jobs found.  Submitting the failed job"
-    echo "Running $CASTBINARY --taskfile $CURDIR/failed.jobs -q $CHUMMEDLIST -N autodock $CURDIR/autodock.sh > $CURDIR/cast.out"
+    echo "Running $CASTBINARY --taskfile $CURDIR/failed.jobs -q $CHUMMEDLIST -N autodock_job $CURDIR/autodock.sh > $CURDIR/cast.out"
     $CASTBINARY --taskfile $CURDIR/failed.jobs -q $CHUMMEDLIST -N autodock $CURDIR/autodock.sh > $CURDIR/cast.out
   else
     echo "Submitting $NUM_JOBS jobs"
-    echo "Running $CASTBINARY -t 1-${NUM_JOBS} -q $CHUMMEDLIST -N autodock $CURDIR/autodock.sh > $CURDIR/cast.out"
+    echo "Running $CASTBINARY -t 1-${NUM_JOBS} -q $CHUMMEDLIST -N autodock_job $CURDIR/autodock.sh > $CURDIR/cast.out"
     $CASTBINARY -t 1-${NUM_JOBS} -q $CHUMMEDLIST -N autodock $CURDIR/autodock.sh > $CURDIR/cast.out
   fi
 
