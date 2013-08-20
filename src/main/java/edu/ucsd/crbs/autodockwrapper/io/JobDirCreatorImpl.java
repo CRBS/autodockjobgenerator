@@ -46,13 +46,9 @@ public class JobDirCreatorImpl implements JobDirCreator {
         logger.debug("Creating directory: {}",inputsDir.getAbsolutePath());
         FileUtils.forceMkdir(inputsDir);
         File outputsDir = new File(path+File.separator+
-                                   Constants.OUT_DIR);
+                                   Constants.OUTPUTS_DIR_NAME);
         logger.debug("Creating directory: {}",outputsDir.getAbsolutePath());
         FileUtils.forceMkdir(outputsDir);
-        File outputsErrDir = new File(path+File.separator+
-                                   Constants.ERR_DIR);
-        logger.debug("Creating directory: {}",outputsErrDir.getAbsolutePath());
-        FileUtils.forceMkdir(outputsErrDir);
     }
     
 }
