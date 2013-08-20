@@ -1,6 +1,32 @@
 #!/bin/sh
 
 
+#
+# function called when USR2 signal is caught
+#
+on_usr2() {
+  echo "External request for job termination" > $CURDIR/KILL.JOB
+}
+
+# trap usr2 signal cause its what gets sent by SGE when qdel is called
+trap 'on_usr2' USR2
+
+
+
+MAX_RETRIES=2
+RETRY_SLEEP=30
+
+# if set must end with /
+PANFISH_BIN_DIR=""
+
+CASTBINARY="${PANFISH_BIN_DIR}panfishcast"
+CHUMBINARY="${PANFISH_BIN_DIR}panfishchum"
+LANDBINARY="${PANFISH_BIN_DIR}panfishland"
+PANFISHSTATBINARY="${PANFISH_BIN_DIR}panfishstat"
+
+#
+# Logs start of task message
+#
 function log_start {
   echo ""
   echo "$1 (iteration $2) start time: `date +%s`"
@@ -8,24 +34,236 @@ function log_start {
 }
 
 
-
+#
+# Logs end of task message
+#
 function log_end {
   echo ""
   echo "$1 (iteration $2) end time: `date +%s`"
   echo ""
 }
 
-echo "This program $0 will use panfish to run"
-echo "Auto dock vina jobs.  The script will"
-echo "first assess the jobs to be run and"
-echo "output the tasks it will perform"
-echo "You will then have a few seconds"
-echo "to cancel the operation with"
-echo "Ctrl-C"
+#
+# Logs failure of job
+#
+function job_failed {
+  echo "$1"
+  echo "$1" 1>&2
+  exit 1
+}
 
-# This program will chum the job directory 
-# then run the jobs 
-# and finally land the results
+
+#
+# Moves any cluster folders out of the way by renaming them with
+# a #.old suffix
+#
+function move_old_shadow_folders {
+  if [ -n $CHUMMEDLIST ] ; then
+
+     for Y in `echo "$CHUMMEDLIST" | sed "s/,/ /g"` ; do
+         if [ -d $Y ] ; then
+            /bin/mv $Y ${Y}.$1.old
+         fi
+     done
+  fi
+}
+
+#
+# Upload data to remote clusters
+#
+function chum_data {
+  log_start "Uploading data via panfishchum" $1
+
+  if [ -e $CURDIR/chum.out ] ; then
+     /bin/mv $CURDIR/chum.out $CURDIR/chum.$(( $1 - 1 )).out
+  fi
+
+  echo "Running $CHUMBINARY --path $CURDIR --exclude 'outputs/*' --exclude 'chum*.out' --exclude 'cast*.out' --listchummed > $CURDIR/chum.out 2>&1"
+  $CHUMBINARY --path $CURDIR --exclude 'outputs/*' --exclude 'chum*.out' --exclude 'cast*.out' --listchummed > $CURDIR/chum.out 2>&1
+
+  if [ $? != 0 ] ; then
+     /bin/mv $CURDIR/chum.out $CURDIR/chum.${1}.failed.out
+     echo "Initial panfishchum failed. Retrying.  See earlier failure in $CURDIR/chum.${1}.failed.out"
+     echo "Running $CHUMBINARY --path $CURDIR --exclude 'outputs/*' --exclude 'chum*.out' --exclude 'cast*.out' --listchummed > $CURDIR/chum.out 2>&1"
+     $CHUMBINARY --path $CURDIR --exclude 'outputs/*' --exclude 'chum*.out' --exclude 'cast*.out' --listchummed > $CURDIR/chum.out 2>&1
+
+     if  [ $? != 0 ] ; then
+        job_failed "Error running panfishchum a second time.  See $CURDIR/chum.out for more information"
+     fi
+  fi
+
+  CHUMMEDLIST=`cat $CURDIR/chum.out | egrep "^chummed.clusters" | sed "s/^chummed.clusters=//"`
+
+  if [ "$CHUMMEDLIST" == "" ] ; then
+     job_failed "No clusters were output from panfishchum.  No place to run. Giving up"
+  fi
+
+  log_end "Uploading data via panfishchum" $1
+}
+
+
+#
+# Run the jobs using panfishcast
+#
+function run_jobs {
+  log_start "Running jobs" $1
+
+  if [ -e $CURDIR/cast.out ] ; then
+     /bin/mv $CURDIR/cast.out $CURDIR/cast.$(( $1 - 1 )).out
+  fi
+
+  if [ -e "$CURDIR/failed.jobs" ] ; then
+    echo "$CURDIR/failed.jobs found.  Submitting the failed job"
+    echo "Running $CASTBINARY --taskfile $CURDIR/failed.jobs -q $CHUMMEDLIST -N autodock $CURDIR/autodock.sh > $CURDIR/cast.out"
+    $CASTBINARY --taskfile $CURDIR/failed.jobs -q $CHUMMEDLIST -N autodock $CURDIR/autodock.sh > $CURDIR/cast.out
+  else
+    echo "Submitting $NUM_JOBS jobs"
+    echo "Running $CASTBINARY -t 1-${NUM_JOBS} -q $CHUMMEDLIST -N autodock $CURDIR/autodock.sh > $CURDIR/cast.out"
+    $CASTBINARY -t 1-${NUM_JOBS} -q $CHUMMEDLIST -N autodock $CURDIR/autodock.sh > $CURDIR/cast.out
+  fi
+
+  if [ $? != 0 ] ; then
+     echo "There was an error running the jobs"
+  fi
+
+  log_end "Running jobs" $1
+}
+
+#
+# Download data from remote clusters
+#
+function land_data {
+  log_start "Downloading results" $1
+
+  echo "Running $LANDBINARY --path $CURDIR --cluster $CHUMMEDLIST --exclude 'inputs/*' 2>&1"
+  $LANDBINARY --path $CURDIR --cluster $CHUMMEDLIST --exclude 'inputs/*' 2>&1
+
+  if [ $? != 0 ] ; then
+     echo "Initial download attempt failed, retrying."
+     echo "Running $LANDBINARY --path $CURDIR --cluster $CHUMMEDLIST --exclude 'inputs/*' 2>&1"
+     $LANDBINARY --path $CURDIR --cluster $CHUMMEDLIST --exclude 'inputs/*' 2>&1
+     if [ $? != 0 ] ; then
+        echo "Second download failed.  Wtf"
+     fi
+  fi
+
+  log_end "Downloading results" $X
+}
+
+#
+# Check that we got all the data back and that
+# all jobs succeeded
+#
+function verify_results {
+  log_start "Verify results" $1
+
+  if [ -e $CURDIR/failed.jobs ] ; then
+     /bin/mv $CURDIR/failed.jobs $CURDIR/failed.$(( $1 - 1 )).jobs
+  fi
+
+  # lets assume everything worked initially
+  ANYFAILED="NO"
+
+  for Y in `seq 1 $NUM_JOBS` ; do 
+     # Verify we have a valid .tar.gz file for each job
+     gzip -t $CURDIR/outputs/${Y}.tar.gz
+     if [ $? != 0 ] ; then
+        ANYFAILED="yes"
+        echo "ERROR: outputs/${Y}.tar.gz file did not pass gzip -t test.  Adding $Y to failed.jobs file"
+        echo "$Y" >> $CURDIR/failed.jobs.tmp
+     fi
+  done
+
+  
+  # Verify we have no failed subjobs for each job
+  for Y in `echo $CHUMMEDLIST | sed "s/,/ /g"` ; do
+     if [ -d "$CURDIR/$Y" ] ; then
+        for Z in `grep "Exit Code:" ${Y}/*stdout | grep -v "Exit Code: 0" | sed "s/^.*(task //" | sed "s/).*//" | sort | uniq` ; do
+           ANYFAILED="yes"
+           echo "ERROR: A sub job in task $Z had non zero exit code.  Adding $Z to failed.jobs file"
+           echo "$Z" >> $CURDIR/failed.jobs.tmp
+        done   
+     fi
+  done   
+
+  # make sure we have a sorted unique list of failed jobs
+  if [ "$ANYFAILED" == "yes" ] ; then
+     cat $CURDIR/failed.jobs.tmp | sort -g | uniq > $CURDIR/failed.jobs
+     /bin/rm -f $CURDIR/failed.jobs.tmp
+  fi  
+
+  log_end "Verify results" $1
+}
+
+#
+# Delete data on remote clusters
+#
+function remove_remote_directories {
+  log_start "Removing remote directories" $1
+  
+  echo "Running $LANDBINARY --path $CURDIR --cluster $CHUMMEDLIST --deleteonly"
+  $LANDBINARY --path $CURDIR --cluster $CHUMMEDLIST --deleteonly 
+  if [ $? != 0 ] ; then
+    echo "Error running land command to remove data directory on remote clusters"
+  fi 
+  log_end "Removing remote directories" $1
+}
+
+#
+# Wait for jobs to complete
+# 
+function wait_for_job_completion {
+   log_start "Wait for job(s)" $1
+   JOBSTATUS="NA"
+   while [ "$JOBSTATUS" != "done" ] 
+   do
+
+      check_for_kill_file
+
+      echo "Job status is $JOBSTATUS.  Sleeping 60 seconds"
+      sleep 60
+
+      # need to call a program to see if the jobs have completed
+      # Output in cast.out file will look like this
+      # Your job-array 142.1-1:1 ("line") has been submitted
+      # Your job-array 143.3-3:1 ("line") has been submitted
+      # Your job-array 144.5-11:1 ("line") has been submitted
+
+      # ideally lets call panfishstat, pass it cast.out and it can tell us 
+      # if we are done or not.  
+      OUT=`$PANFISHSTATBINARY --statusofjobs $CURDIR/cast.out`
+      if [ $? != 0 ] ; then
+          echo "Error calling $PANFISHSTATBINARY --statusofjobs $CURDIR/cast.out will just keep waiting"
+          JOBSTATUS="unknown"
+      else
+          JOBSTATUS=`echo $OUT | egrep "^status=" | sed "s/^status=//" | tr \[:upper:\] \[:lower:\]`
+      fi
+   done
+   log_end "Wait for job(s)" $1
+}
+
+#
+# Code checks for KILL.JOB file, if found the file
+# is chummed to remote clusters and command exits
+#
+function check_for_kill_file {
+
+  if [ -e "$CURDIR/KILL.JOB" ] ; then
+     echo "$CURDIR/KILL.JOB exists.  Chumming to remote clusters and exiting..."
+     echo "Running $CHUMBINARY --path "$CURDIR/KILL.JOB" > $CURDIR/killed.chum.out 2>&1"
+     $CHUMBINARY --path "$CURDIR/KILL.JOB" > $CURDIR/killed.chum.out 2>&1
+
+     echo "Running qdel on local cluster"
+
+     # lets also kill any running jobs if we see them by calling qdel
+     qdel `cat $CURDIR/cast*out  sed "s/^.*job-array //" | sed "s/\..*//"`
+     exit 1
+  fi
+}
+
+
+
+echo "This program $0 will use panfish to run Auto dock vina jobs."
 
 SCRIPT_DIR=`dirname $0`
 
@@ -53,46 +291,91 @@ fi
 # first lets find out how many jobs to run
 NUM_JOBS=`find $CURDIR/inputs -name "*.gz" -type f | wc -l`
 
+if [ "${JOB_ID}" != "" ] ; then
+   echo "SGE Job.Task Id: ${JOB_ID}.${SGE_TASK_ID}"
+fi
+
 echo "Number of jobs to run: $NUM_JOBS"
-
-echo "Each job takes 2-8 hours to run so I'll let you do the math"
-
-echo "Sleeping 10 seconds before starting.  If you don't want to"
-echo "run this now is the time to hit Ctrl-c"
+echo "Each job takes 0-8 hours depending on batching to run so I'll let you do the math"
+echo "Sleeping 10 seconds before starting.  If you don't want to run this now"
+echo "is the time to hit ctrl-c"
 
 sleep 10
 
 echo "Okay you had your chance..."
 
+X=1
 
-log_start "Uploading data via panfishchum" 1
+#
+# Check for RESTART.JOB file if found it means we should start up at the specified
+# iteration
+#
+if [ -s "$CURDIR/RESTART.JOB" ] ; then
+   echo "RESTART.JOB file detected"
+   X=`cat $CURDIR/RESTART.JOB`
+   if [ $X -le 1 ] ; then
+      job_failed "Unable to restart $CURDIR/RESTART.JOB must have an iteration number greater then 1"
+   fi
 
-panfishchum --path $CURDIR --exclude 'outputs/*' --exclude 'chum*.out' --exclude 'cast*.out' --listchummed > $CURDIR/chum.out 2>&1
+   echo "From contents of RESTART.JOB setting iteration to $X"
 
-if [ $? != 0 ] ; then
-  echo "Error running panfishchum see output in $CURDIR/chum.out"
-  exit 1
+   # Performing a check on results
+   verify_results $X
+   if [ "$ANYFAILED" == "NO" ] ; then
+      echo "Restart verification found no errors.  Setting X above MAX_RETRIES to skip loop"
+      let X=$MAX_RETRIES+1
+   fi
 fi
 
-CHUMMEDLIST=`cat $CURDIR/chum.out | egrep "^chummed.clusters" | sed "s/^chummed.clusters=//"`
+while [ $X -le $MAX_RETRIES ] 
+do
 
-log_end "Uploading data via panfishchum" 1
+  check_for_kill_file
 
-echo "Cluster list: $CHUMMEDLIST"
+  move_old_shadow_folders $(( $X - 1 ))
 
-log_start "Running jobs" 1
+  
+  if [ $X -gt 1 ] ; then
+    echo "Iteration $X. Jobs failed in previous iteration.  Sleeping $RETRY_SLEEP before trying again"
+    sleep $RETRY_SLEEP
+  fi
+ 
+  check_for_kill_file
 
-panfishcast -sync y -t 1-${NUM_JOBS} -q $CHUMMEDLIST -N autodock > $CURDIR/cast.out
+  chum_data $X
 
-log_end "Running jobs" 1
+  echo "Cluster list: $CHUMMEDLIST"
 
-log_start "Downloading results" 1
+  check_for_kill_file
 
-panfishland --path $CURDIR --cluster $CHUMMEDLIST --exclude 'inputs/*' > $CURDIR/land.out 2>&1
+  run_jobs $X
 
-if [ $? != 0 ] ; then
-  echo "Error downloading data.  See $CURDIR/land.out for more information"
-  exit 1
-fi
+  wait_for_job_completion $X
 
-log_end "Downloading results" 1
+  check_for_kill_file
+
+  land_data $X
+
+  check_for_kill_file
+
+  verify_results $X
+
+  check_for_kill_file
+
+  # If nothing failed we are good so get out of loop
+  if [ "$ANYFAILED" == "NO" ] ; then
+     break
+  fi
+
+  # increment X by 1
+  X=$(( $X + 1 ))
+
+done
+
+
+# clean up remote clusters
+remove_remote_directories $X
+
+echo "Script completed successfully.  Have a nice day."
+
+exit 0
