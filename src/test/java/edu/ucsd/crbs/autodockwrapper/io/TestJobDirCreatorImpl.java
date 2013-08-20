@@ -52,11 +52,10 @@ public class TestJobDirCreatorImpl {
             File inputsDir = new File(jobDir.getAbsoluteFile()+File.separator+Constants.INPUTS_DIR_NAME);
             assertTrue(inputsDir.isDirectory() == true);
             
-            File outputsOutDir = new File(jobDir.getAbsoluteFile()+File.separator+Constants.OUT_DIR);
+            File outputsOutDir = new File(jobDir.getAbsoluteFile()+File.separator+Constants.OUTPUTS_DIR_NAME);
             assertTrue(outputsOutDir.isDirectory() == true);
             
-            File outputsErrDir = new File(jobDir.getAbsoluteFile()+File.separator+Constants.ERR_DIR);
-            assertTrue(outputsErrDir.isDirectory() == true);
+           
     }
     
 }
