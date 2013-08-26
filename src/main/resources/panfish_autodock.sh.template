@@ -24,6 +24,8 @@ CHUMBINARY="${PANFISH_BIN_DIR}panfishchum"
 LANDBINARY="${PANFISH_BIN_DIR}panfishland"
 PANFISHSTATBINARY="${PANFISH_BIN_DIR}panfishstat"
 
+AUTODOCKSCRIPT="autodock.sh"
+
 #
 # Logs start of task message
 #
@@ -114,12 +116,12 @@ function run_jobs {
 
   if [ -e "$CURDIR/failed.jobs" ] ; then
     echo "$CURDIR/failed.jobs found.  Submitting the failed job"
-    echo "Running $CASTBINARY --taskfile $CURDIR/failed.jobs -q $CHUMMEDLIST -N autodock_job $CURDIR/autodock.sh > $CURDIR/cast.out"
-    $CASTBINARY --taskfile $CURDIR/failed.jobs -q $CHUMMEDLIST -N autodock $CURDIR/autodock.sh > $CURDIR/cast.out
+    echo "Running $CASTBINARY --taskfile $CURDIR/failed.jobs -q $CHUMMEDLIST -N autodock_job $CURDIR/$AUTODOCKSCRIPT > $CURDIR/cast.out"
+    $CASTBINARY --taskfile $CURDIR/failed.jobs -q $CHUMMEDLIST -N autodock_job $CURDIR/$AUTODOCKSCRIPT > $CURDIR/cast.out
   else
     echo "Submitting $NUM_JOBS jobs"
-    echo "Running $CASTBINARY -t 1-${NUM_JOBS} -q $CHUMMEDLIST -N autodock_job $CURDIR/autodock.sh > $CURDIR/cast.out"
-    $CASTBINARY -t 1-${NUM_JOBS} -q $CHUMMEDLIST -N autodock $CURDIR/autodock.sh > $CURDIR/cast.out
+    echo "Running $CASTBINARY -t 1-${NUM_JOBS} -q $CHUMMEDLIST -N autodock_job $CURDIR/$AUTODOCKSCRIPT > $CURDIR/cast.out"
+    $CASTBINARY -t 1-${NUM_JOBS} -q $CHUMMEDLIST -N autodock_job $CURDIR/$AUTODOCKSCRIPT > $CURDIR/cast.out
   fi
 
   if [ $? != 0 ] ; then
@@ -282,9 +284,9 @@ if [ ! -d "$CURDIR/outputs" ] ; then
 fi
 
 
-# lets verify autodock.sh exists
-if [ ! -x "$CURDIR/autodock.sh" ] ; then
-  echo "$CURDIR/autodock.sh does not exist or is not executable"
+# lets verify $AUTODOCKSCRIPT exists
+if [ ! -x "$CURDIR/$AUTODOCKSCRIPT" ] ; then
+  echo "$CURDIR/$AUTODOCKSCRIPT does not exist or is not executable"
   exit 1
 fi
 
