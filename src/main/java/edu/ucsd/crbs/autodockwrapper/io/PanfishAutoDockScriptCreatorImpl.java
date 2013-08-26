@@ -16,8 +16,8 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Instances of this class write out a Panfish auto dock script which runs the
- * auto dock jobs via panfish.  The script is pulled from a template found in
- * the /{@value edu.ucsd.crbs.autodockwrapper.Constants#PANFISH_AUTO_DOCK_TEMPLATE}
+ * auto dock jobs using Panfish.  The script is pulled from a template found in
+ * the class path under this location: /{@value edu.ucsd.crbs.autodockwrapper.Constants#PANFISH_AUTO_DOCK_TEMPLATE}
  * @author churas
  */
 public class PanfishAutoDockScriptCreatorImpl implements PanfishAutoDockScriptCreator {
