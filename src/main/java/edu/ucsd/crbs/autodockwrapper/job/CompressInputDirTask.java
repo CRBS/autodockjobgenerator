@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Compresses paths passed in via constructor using the {@link Runnable} interface
- * allowing jobs to be run in background threads.
+ * allowing jobs to be run in separate processing threads.
  * 
  * @author churas
  */
