@@ -31,7 +31,7 @@ public class CompressInputDirTask implements Runnable {
      * Constructor
      * @param cd CompressDirectory object that does the compression
      * @param taskId id of task to compress
-     * @param inputsDir Inputs folder where task to comrpess resides
+     * @param inputsDir Inputs folder where task to compress resides
      */
     public CompressInputDirTask(CompressDirectory cd,int taskId,final String inputsDir){
         _taskId = taskId;
