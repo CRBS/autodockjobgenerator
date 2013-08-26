@@ -13,7 +13,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.io.filefilter.FileFilterUtils;
 
 /**
- * Instances of this class return via the {@link #getFileList} method a list
+ * Instances of this class return, via the {@link #getFileList} method, a list
  * of file paths using the path which can be a file containing a list of files
  * or a directory.
  * @author churas
@@ -23,9 +23,9 @@ public class FileListGeneratorImpl implements FileListGenerator {
     
     
     /**
-     * If <b>path</p> is a file this method returns the contents of that file.  If <b>path</b>
+     * If <b>path</b> is a file this method returns the contents of that file.  If <b>path</b>
      * is a directory this method returns a list of all files ending in {@value edu.ucsd.crbs.autodockwrapper.Constants#PDBQT_SUFFIX}
-     * under that directory path when recursively searched.  
+     * under the directory <b>path</b>.  
      * @param path Path to a file or directory
      * @return List of files
      * @throws IOException if there is an error opening the path or directory
