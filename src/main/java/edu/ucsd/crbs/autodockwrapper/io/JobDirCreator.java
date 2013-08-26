@@ -7,9 +7,8 @@ package edu.ucsd.crbs.autodockwrapper.io;
 import java.io.IOException;
 
 /**
- * PROTOTYPE CODE!!!!!!!!!!!!!!
  * Classes implementing this interface will support the creation of the job
- * directories need to run auto dock jobs
+ * directories needed to run Auto Dock jobs
  * @author churas
  */
 public interface JobDirCreator {
