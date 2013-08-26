@@ -32,6 +32,10 @@ public class FileListGeneratorImpl implements FileListGenerator {
      */
     @Override
     public List<String> getFileList(final String path) throws IOException {
+        if (path == null){
+            throw new IllegalArgumentException("Path passed into method cannot be null");
+        }
+               
         File sourceFileObj = new File(path);
         
         if (sourceFileObj.isDirectory()){
