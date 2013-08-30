@@ -35,7 +35,9 @@ public class JobGeneratorImpl implements JobGenerator,Runnable{
     private List<String> _receptors;
     private List<Future> _taskList;
     private long _totalJobCount;
-    
+    private static final String TASK_SUB_TASK_DELIM = ".";
+    private static final String PERIOD = ".";
+    private static final String RESULT_FILE_NAME_DELIM = "__";
     private static final String ONE_SPACE = " ";
 
     /**
@@ -135,13 +137,50 @@ public class JobGeneratorImpl implements JobGenerator,Runnable{
                 copyFileIfDoesNotExist(sourceReceptorFile,destReceptorFile);
                 copyFileIfDoesNotExist(sourceLigandFile,destLigandFile);
                 
+                
+                //write the first line containing the arguments to pass to auto dock
                 bw.write(Integer.toString(subJobCount)+
                          Constants.CONFIG_SUBTASK_ID_DELIM+
                          Constants.LIGANDS_FLAG+relativeLigandsInputsDir+
                           destLigandFile.getName()+ONE_SPACE+
                          Constants.RECEPTORS_FLAG+relativeReceptorsInputsDir+
                          destReceptorFile.getName()+Constants.NEW_LINE);
-
+                
+                //write the second line containing the desired pdb file output path
+                //We will write the output pdb file to 
+                //   outputs/SGE_TASK_ID/<receptor file name>/pdbqt/SGE_TASK_ID.SUB_JOB.<ligand file name>.pdbqt
+                bw.write(Integer.toString(subJobCount)+
+                        Constants.CONFIG_SUBTASK_ID_DELIM+
+                        Constants.OUTPUTS_DIR_NAME+File.separator+
+                        Integer.toString(taskId)+File.separator+
+                        getFileNameMinusSuffix(destReceptorFile)+
+                        File.separator+
+                        Constants.PDBQT_DIR_NAME+File.separator+
+                        Integer.toString(taskId)+TASK_SUB_TASK_DELIM+
+                        Integer.toString(subJobCount)+
+                        RESULT_FILE_NAME_DELIM+
+                        getFileNameMinusSuffix(destLigandFile)+
+                        PERIOD+Constants.PDBQT_SUFFIX+Constants.NEW_LINE);
+                
+                
+                //write the third line containing the desired log file output path
+                //We will write the output log file to
+                //   outputs/SGE_TASK_ID/<receptor file name>/logs/SGE_TASK_ID.SUB_JOB.<ligand file name>.log
+                bw.write(Integer.toString(subJobCount)+
+                        Constants.CONFIG_SUBTASK_ID_DELIM+
+                        Constants.OUTPUTS_DIR_NAME+File.separator+
+                        Integer.toString(taskId)+File.separator+
+                        getFileNameMinusSuffix(destReceptorFile)+
+                        File.separator+
+                        Constants.LOGS_DIR_NAME+File.separator+
+                        Integer.toString(taskId)+TASK_SUB_TASK_DELIM+
+                        Integer.toString(subJobCount)+
+                        RESULT_FILE_NAME_DELIM+
+                        getFileNameMinusSuffix(destLigandFile)+
+                        PERIOD+Constants.LOG_SUFFIX+Constants.NEW_LINE);
+                
+                
+                
                 subJobCount++;
                 
                 if (subJobCount > Constants.SUB_JOBS_PER_JOB){
@@ -201,6 +240,11 @@ public class JobGeneratorImpl implements JobGenerator,Runnable{
         }
     }
     
+    
+    /**
+     * Invokes createJobs() method.  This method exists so instances of this class can
+     * be run in a separate thread.
+     */
     @Override
     public void run() {
         try {
@@ -268,6 +312,16 @@ public class JobGeneratorImpl implements JobGenerator,Runnable{
         
         BufferedWriter bw = new BufferedWriter(new FileWriter(inputsDir+File.separator+Integer.toString(taskId)+Constants.AUTO_DOCK_CONFIG_SUFFIX));
         return bw;
+    }
+    
+    private String getFileNameMinusSuffix(File theFile){
+        
+        int lastPeriodPos = theFile.getName().lastIndexOf('.');
+        
+        if (lastPeriodPos != -1){
+            return theFile.getName().substring(0, lastPeriodPos);
+        }
+        return theFile.getName();
     }
     
 }
