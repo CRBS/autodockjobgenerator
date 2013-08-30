@@ -60,6 +60,7 @@ public class App {
     static final String RECEPTORS_ARG = "receptors";
     static final String OUTPUT_ARG = "outputjobdir";
     static final String SUBJOBS_ARG = "subjobs";
+    static final String PERCENT_CPU_ARG = "cpuload";
     static final String HELP_ARG = "h";
     static long THREAD_SLEEP_TIME = 20000;
 
@@ -87,7 +88,8 @@ public class App {
                     accepts(LIGANDS_ARG,"(Required) either directory containing ligand files or file listing ligand files").withRequiredArg().ofType(File.class).describedAs("file or directory");
                     accepts(RECEPTORS_ARG,"(Required) either directory containing receptor files or file listing receptor files").withRequiredArg().ofType(File.class).describedAs("file or directory");
                     accepts(OUTPUT_ARG,"(Required) directory to write generated jobs").withRequiredArg().ofType(String.class).describedAs("directory");
-                    accepts(SUBJOBS_ARG,"Number of subjobs to batch per job.  Default 400").withRequiredArg().ofType(Integer.class).describedAs("# subjobs");
+                    accepts(SUBJOBS_ARG,"Number of subjobs to batch per job (default 400).").withRequiredArg().ofType(Integer.class).describedAs("# subjobs");
+                    accepts(PERCENT_CPU_ARG,"Percentage of cores to use for job generation (default 90).").withRequiredArg().ofType(Integer.class).describedAs("% of cores");
                     accepts(HELP_ARG, "Show help").forHelp();
                 }
             };
@@ -177,6 +179,19 @@ public class App {
                 THREAD_SLEEP_TIME = 1000;
             }
             
+            double percentCoresToUse = Constants.PERCENT_OF_CORES_TO_USE_FOR_COMPRESSION;
+            
+            if (optionSet.has(PERCENT_CPU_ARG)){
+                Integer userCpuLoad = (Integer)optionSet.valueOf(PERCENT_CPU_ARG);
+                
+                if (userCpuLoad.intValue() <= 0 || userCpuLoad.intValue() > 100){
+                    logger.error(PERCENT_CPU_ARG+" parameter must be given a value between 1 and 100");
+                    parser.printHelpOn(System.err);
+                    System.exit(1);
+                }
+                percentCoresToUse = (double)userCpuLoad.intValue()/100.0;
+            }
+            
             System.out.println("Generating job in directory: "+outputJobDir);
             System.out.println("Batching: "+Constants.SUB_JOBS_PER_JOB+" sub jobs per job");
             
@@ -196,7 +211,7 @@ public class App {
             
             FileListGenerator listGen = getFileListGenerator();
             
-            ExecutorService es = getExecutorService();
+            ExecutorService es = getExecutorService(percentCoresToUse);
             List<Future> taskList = Collections.synchronizedList(new LinkedList<Future>());
             //generate jobs
             JobGenerator jg = getJobGenerator(es,taskList,outputJobDir, 
@@ -304,15 +319,17 @@ public class App {
     
      /**
      * This method creates an {@link java.util.concurrent.ExecutorService} with a thread pool size
-     * set to {@link edu.ucsd.crbs.autodockwrapper.Constants#PERCENT_OF_CORES_TO_USE_FOR_COMPRESSION} X
+     * set to percentOfCoresToUse passed in X
      * {@link java.lang.Runtime.getRuntime()#availableProcessors() Runtime.getRuntime().availableProcessors()} or 1 if value is less then 1.
+     * @param percentOfCoresToUse The percentage of cores to use and should be a value between 0 and 1.  For example 0.9 means 90%
      * @return ExecutorService
      */
-    static ExecutorService getExecutorService(){
+    static ExecutorService getExecutorService(double percentOfCoresToUse){
+        
         //Create a threadpool that is 90% size of number of processors on system
         //with a minimum size of 1.
         int threadPoolSize = (int)Math.round((double)Runtime.getRuntime().availableProcessors()*
-                                              Constants.PERCENT_OF_CORES_TO_USE_FOR_COMPRESSION);
+                                              percentOfCoresToUse);
         if (threadPoolSize < 1){
             threadPoolSize = 1;
         }
