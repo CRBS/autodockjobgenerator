@@ -70,6 +70,40 @@ function move_old_shadow_folders {
   fi
 }
 
+
+#
+# Get list of valid clusters by looking to see what
+# clusters have VINA installed on them
+# set these clusters in RAWCLUSTERLIST
+#
+function get_list_of_valid_clusters {
+
+  log_start "Checking for vina script" $1
+  VINA_PATH=`egrep "^VINA" $CURDIR/$AUTODOCKSCRIPT | sed "s/^.*BASEDIR//" | sed "s/\".*//"`
+
+  # make sure this path exists locally otherwise bail
+  if [ ! -e "$VINA_PATH" ] ; then
+     job_failed "The path $VINA_PATH set in $CURDIR/$AUTODOCKSCRIPT does not exist on the local filesystem"
+  fi
+
+  # get list of clusters where this path exists 
+  echo "Running $CHUMBINARY --path $VINA_PATH --listexists $CLUSTERARG > $CURDIR/vina_check.out 2>&1"
+
+  $CHUMBINARY --path $VINA_PATH --listexists $CLUSTERARG > $CURDIR/vina_check.out 2>&1
+
+  if [ $? != 0 ] ; then
+     job_failed "Error running $CHUMBINARY --path $VINA_PATH --listexists $CLUSTERARG > $CURDIR/vina_check.out 2>&1"
+  fi
+
+  RAWCLUSTERLIST=`cat $CURDIR/vina_check.out | egrep "^chummed.clusters" | sed "s/^chummed.clusters=//"`
+
+  if [ "$RAWCLUSTERLIST" == "" ] ; then
+    job_failed "No clusters contained $VINA_PATH"
+  fi
+
+  log_end "Checking for vina script" $1
+}
+
 #
 # Upload data to remote clusters
 #
@@ -80,14 +114,14 @@ function chum_data {
      /bin/mv $CURDIR/chum.out $CURDIR/chum.$(( $1 - 1 )).out
   fi
 
-  echo "Running $CHUMBINARY --path $CURDIR --exclude 'outputs/*' --exclude 'chum*.out' --exclude 'cast*.out' --listchummed > $CURDIR/chum.out 2>&1"
-  $CHUMBINARY --path $CURDIR --exclude 'outputs/*' --exclude 'chum*.out' --exclude 'cast*.out' --listchummed > $CURDIR/chum.out 2>&1
+  echo "Running $CHUMBINARY --cluster $RAWCLUSTERLIST --path $CURDIR --exclude 'outputs/*' --exclude 'chum*.out' --exclude 'cast*.out' --exclude 'vina_check*.out' --listchummed > $CURDIR/chum.out 2>&1"
+  $CHUMBINARY --cluster $RAWCLUSTERLIST --path $CURDIR --exclude 'outputs/*' --exclude 'chum*.out' --exclude 'cast*.out' --exclude 'vina_check*.out' --listchummed > $CURDIR/chum.out 2>&1
 
   if [ $? != 0 ] ; then
      /bin/mv $CURDIR/chum.out $CURDIR/chum.${1}.failed.out
      echo "Initial panfishchum failed. Retrying.  See earlier failure in $CURDIR/chum.${1}.failed.out"
-     echo "Running $CHUMBINARY --path $CURDIR --exclude 'outputs/*' --exclude 'chum*.out' --exclude 'cast*.out' --listchummed > $CURDIR/chum.out 2>&1"
-     $CHUMBINARY --path $CURDIR --exclude 'outputs/*' --exclude 'chum*.out' --exclude 'cast*.out' --listchummed > $CURDIR/chum.out 2>&1
+     echo "Running $CHUMBINARY --cluster $RAWCLUSTERLIST --path $CURDIR --exclude 'outputs/*' --exclude 'chum*.out' --exclude 'cast*.out' --exclude 'vina_check*.out' --listchummed > $CURDIR/chum.out 2>&1"
+     $CHUMBINARY --cluster $RAWCLUSTERLIST --path $CURDIR --exclude 'outputs/*' --exclude 'chum*.out' --exclude 'cast*.out' --exclude 'vina_check*.out' --listchummed > $CURDIR/chum.out 2>&1
 
      if  [ $? != 0 ] ; then
         job_failed "Error running panfishchum a second time.  See $CURDIR/chum.out for more information"
@@ -342,6 +376,12 @@ do
     sleep $RETRY_SLEEP
   fi
  
+  check_for_kill_file
+
+  get_list_of_valid_clusters $X
+
+  echo "Clusters with Vina: $RAWCLUSTERLIST"
+
   check_for_kill_file
 
   chum_data $X
