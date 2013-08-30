@@ -199,8 +199,7 @@ if [ -e $SCRATCH ] ; then
 fi
 
 makeDirectory $SCRATCH/inputs
-makeDirectory $SCRATCH/outputs/${SGE_TASK_ID}/logs
-makeDirectory $SCRATCH/outputs/${SGE_TASK_ID}/pdbqt
+makeDirectory $SCRATCH/outputs/${SGE_TASK_ID}
 
 copyInputsToScratch $SCRATCH/inputs
 
@@ -212,15 +211,34 @@ if [ $? != 0 ] ; then
   jobFailed "Unable to run: cd $SCRATCH"
 fi
 
-NUM_JOBS=`wc -l $SCRATCH/inputs/${SGE_TASK_ID}/${SGE_TASK_ID}.autodock.sh.config | sed "s/ .*//"`
+NUM_JOBS=`tail -n 1 $SCRATCH/inputs/${SGE_TASK_ID}/${SGE_TASK_ID}.autodock.sh.config | sed "s/:::.*//"`
 logMessage "Found $NUM_JOBS to run"
 
 for Y in `seq 1 $NUM_JOBS` ; do
 
-   OTHERARGS=`egrep "^$Y:::" $SCRATCH/inputs/${SGE_TASK_ID}/${SGE_TASK_ID}.autodock.sh.config | sed "s/^.*::://"`
+   THEARGS=`egrep "^$Y:::" $SCRATCH/inputs/${SGE_TASK_ID}/${SGE_TASK_ID}.autodock.sh.config | head -n 1 | sed "s/^.*::://"`
+   PDB_OUT_FILE=`egrep "^$Y:::" $SCRATCH/inputs/${SGE_TASK_ID}/${SGE_TASK_ID}.autodock.sh.config | head -n 2 | tail -n 1 | sed "s/^.*::://"`
+   LOG_OUT_FILE=`egrep "^$Y:::" $SCRATCH/inputs/${SGE_TASK_ID}/${SGE_TASK_ID}.autodock.sh.config | head -n 3 | tail -n 1 | sed "s/^.*::://"`
+   PDB_DIR=`dirname $PDB_OUT_FILE`
+
+   LOG_DIR=`dirname $LOG_OUT_FILE`
+
+   if [ ! -d $PDB_DIR ] ; then
+        /bin/mkdir -p $PDB_DIR
+        if [ $? != 0 ] ; then
+            jobFailed "Unable to create $PDB_DIR"
+        fi
+   fi
+
+   if [ ! -d $LOG_DIR ] ; then
+        /bin/mkdir -p $LOG_DIR
+        if [ $? != 0 ] ; then
+           jobFailed "Unable to create $LOG_DIR"
+        fi
+   fi
 
    logStartTime "Vina $Y"
-   $VINA $ARGUMENTS $OTHERARGS --out $SCRATCH/outputs/${SGE_TASK_ID}/pdbqt/${SGE_TASK_ID}.$Y.pdbqt > $SCRATCH/outputs/${SGE_TASK_ID}/logs/${SGE_TASK_ID}.$Y.log 2>&1
+   $VINA $ARGUMENTS $THEARGS --out $SCRATCH/${PDB_OUT_FILE} > $SCRATCH/${LOG_OUT_FILE} 2>&1
    EXIT_CODE=$?
 
    logEndTime "Vina $Y" $START_TIME $EXIT_CODE
