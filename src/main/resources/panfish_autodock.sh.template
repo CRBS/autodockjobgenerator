@@ -26,6 +26,8 @@ PANFISHSTATBINARY="${PANFISH_BIN_DIR}panfishstat"
 
 AUTODOCKSCRIPT="autodock.sh"
 
+DOWNLOAD_DATA_REQUEST="DOWNLOAD.DATA.REQUEST"
+
 #
 # Logs start of task message
 #
@@ -259,6 +261,14 @@ function wait_for_job_completion {
       echo "Job status is $JOBSTATUS.  Sleeping 60 seconds"
       sleep 60
 
+      if [ -e "$CURDIR/$DOWNLOAD_DATA_REQUEST" ] ; then
+          /bin/rm -f $CURDIR/$DOWNLOAD_DATA_REQUEST
+          echo "$DOWNLOAD_DATA_REQUEST file found.  Performing download"
+          land_data $1
+          /bin/rm -f $CURDIR/$DOWNLOAD_DATA_REQUEST
+          echo "Removing $DOWNLOAD_DATA_REQUEST file"
+      fi
+
       # need to call a program to see if the jobs have completed
       # Output in cast.out file will look like this
       # Your job-array 142.1-1:1 ("line") has been submitted
@@ -298,6 +308,12 @@ function check_for_kill_file {
 }
 
 
+#######################################################################
+#
+# Start of program
+#
+#######################################################################
+
 
 echo "This program $0 will use panfish to run Auto dock vina jobs."
 
@@ -332,9 +348,11 @@ if [ "${JOB_ID}" != "" ] ; then
 fi
 
 echo "Number of jobs to run: $NUM_JOBS"
-echo "Each job takes 0-8 hours depending on batching to run so I'll let you do the math"
-echo "Sleeping 10 seconds before starting.  If you don't want to run this now"
-echo "is the time to hit ctrl-c"
+echo ""
+echo "Each job takes 0-8 hours depending on batching to run so I'll"
+echo "let you do the math.  Sleeping 10 seconds before starting."
+echo "If you don't want to run this now is the time to hit ctrl-c"
+echo ""
 
 sleep 10
 
