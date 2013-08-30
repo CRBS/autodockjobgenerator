@@ -8,7 +8,11 @@ import java.io.File;
  */
 public class Constants {
     
+    public static final String LOGS_DIR_NAME = "logs";
     
+    public static final String PDBQT_DIR_NAME = "pdbqt";
+    
+    public static final String LOG_SUFFIX = "log";
     public static final String PDBQT_SUFFIX = "pdbqt";
     /**
      * New line character to use.  This is hard coded cause we don't want to 
