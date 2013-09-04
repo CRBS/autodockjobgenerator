@@ -7,6 +7,13 @@
 #
 ###########################################################
 
+
+#
+# Check for a kill file and if found exit
+#
+
+
+
 #
 # This function outputs an error message to standard error and exits with an exit code of 1
 # The message is format of ERROR: (first argument passed to function)
@@ -30,6 +37,21 @@ function logWarning {
 function logMessage {
   echo "(task ${SGE_TASK_ID})    $1"
 }
+
+
+function check_for_kill_file {
+
+  if [ -e "$BASEDIR/KILL.JOB" ] ; then
+
+    compressAndUploadResults
+    # remove the scratch directory 
+    /bin/rm -rf $SCRATCH
+
+    jobFailed "Kill request detected"
+  fi
+}
+
+
 
 #
 # This function runs du on path given and sets NUM_BYTES variable to size 
@@ -203,7 +225,7 @@ makeDirectory $SCRATCH/outputs/${SGE_TASK_ID}
 
 copyInputsToScratch $SCRATCH/inputs
 
-let CNTR=1
+let CNTR=0
 
 cd $SCRATCH
 
@@ -213,6 +235,10 @@ fi
 
 NUM_JOBS=`tail -n 1 $SCRATCH/inputs/${SGE_TASK_ID}/${SGE_TASK_ID}.autodock.sh.config | sed "s/:::.*//"`
 logMessage "Found $NUM_JOBS to run"
+
+SCORE_CSV="$SCRATCH/outputs/${SGE_TASK_ID}/score.csv"
+
+echo "#Receptor,Ligand,Score" > $SCORE_CSV
 
 for Y in `seq 1 $NUM_JOBS` ; do
 
@@ -237,11 +263,35 @@ for Y in `seq 1 $NUM_JOBS` ; do
         fi
    fi
 
+   let MOD_CHECK=$CNTR%50
+
+   if [ $MOD_CHECK == 0 ] ; then
+       check_for_kill_file
+   fi
+
    logStartTime "Vina $Y"
    $VINA $ARGUMENTS $THEARGS --out $SCRATCH/${PDB_OUT_FILE} > $SCRATCH/${LOG_OUT_FILE} 2>&1
    EXIT_CODE=$?
 
    logEndTime "Vina $Y" $START_TIME $EXIT_CODE
+  
+   logStartTime "Get Score $Y" 
+
+   # if the job was successful extract the best score
+   # and write to the SCORE_CSV file otherwise write JOBFAILED in the score column for that job
+   LIGAND=`echo $LOG_OUT_FILE | sed "s/^.*\///" | sed "s/\.log//"`
+   RECEP=`echo $LOG_OUT_FILE | sed "s/\/logs\/.*//" | sed "s/^.*\///"`
+
+   if [ $EXIT_CODE -eq 0 ] ; then
+      SCORE=`cat $SCRATCH/${LOG_OUT_FILE} | egrep "  1 " | awk '{printf("%.3f",$2);}'`
+      echo "$RECEP,$LIGAND,$SCORE" >> $SCORE_CSV
+   else
+      echo "$RECEP,$LIGAND,JOBFAILED" >> $SCORE_CSV
+   fi
+
+   logEndTime "Get Score $Y" $START_TIME 0
+
+   let CNTR++ 
 done
 
 compressAndUploadResults
