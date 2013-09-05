@@ -18,6 +18,6 @@ mvn clean package assembly:single
 Run
 ===
 
-To run simply invoke this command replacing 1.0-SNAPSHOT with the current version and "-h" flag for usage.
+To run simply invoke this command replacing 1.0 with the current version and "-h" flag for usage.
 
-java -jar target/autodockwrapper-1.0-SNAPSHOT-jar-with-dependencies.jar -h
+java -jar target/autodockjobgenerator-1.0-jar-with-dependencies.jar -h
