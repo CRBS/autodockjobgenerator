@@ -8,6 +8,9 @@ import java.io.File;
  */
 public class Constants {
     
+    
+    public static final String PANFISH_BASEDIR_VAR_NAME = "$PANFISH_BASEDIR";
+    
     public static final String LOGS_DIR_NAME = "logs";
     
     public static final String PDBQT_DIR_NAME = "pdbqt";

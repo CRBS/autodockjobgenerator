@@ -61,6 +61,8 @@ public class App {
     static final String OUTPUT_ARG = "outputjobdir";
     static final String SUBJOBS_ARG = "subjobs";
     static final String PERCENT_CPU_ARG = "cpuload";
+    static final String VINA_BIN = "autodockbin";
+    static final String CONFIG_ARGS = "configargs";
     static final String HELP_ARG = "h";
     static long THREAD_SLEEP_TIME = 20000;
 
@@ -72,7 +74,7 @@ public class App {
     /**
      * The default path to Auto Dock vina binary: {@value}
      */
-    public static final String DEFAULT_VINA_BIN = "$PANFISH_BASEDIR/home/churas/bin/autodock_vina_1_1_2/bin/vina";
+    public static final String DEFAULT_VINA_BIN = Constants.PANFISH_BASEDIR_VAR_NAME+"/home/churas/bin/autodock_vina_1_1_2/bin/vina";
     
 
     /**
@@ -90,6 +92,8 @@ public class App {
                     accepts(OUTPUT_ARG,"(Required) directory to write generated jobs").withRequiredArg().ofType(String.class).describedAs("directory");
                     accepts(SUBJOBS_ARG,"Number of subjobs to batch per job (default 400).").withRequiredArg().ofType(Integer.class).describedAs("# subjobs");
                     accepts(PERCENT_CPU_ARG,"Percentage of cores to use for job generation (default 90).").withRequiredArg().ofType(Integer.class).describedAs("% of cores");
+                    accepts(VINA_BIN,"Path to autodock binary (default "+DEFAULT_VINA_BIN+")").withRequiredArg().ofType(String.class).describedAs("Auto Dock Binary Path");
+                    accepts(CONFIG_ARGS,"Autodock configuration parameters (default "+DEFAULT_ARGS+")").withRequiredArg().ofType(String.class).describedAs("auto dock parameters");
                     accepts(HELP_ARG, "Show help").forHelp();
                 }
             };
@@ -192,8 +196,26 @@ public class App {
                 percentCoresToUse = (double)userCpuLoad.intValue()/100.0;
             }
             
+            String vinaBinPath = DEFAULT_VINA_BIN;
+            
+            if (optionSet.has(VINA_BIN)){
+                vinaBinPath = (String)optionSet.valueOf(VINA_BIN);
+                if (!vinaBinPath.startsWith(Constants.PANFISH_BASEDIR_VAR_NAME)){
+                    vinaBinPath = Constants.PANFISH_BASEDIR_VAR_NAME+vinaBinPath;
+                }
+            }
+            
+            String vinaArgs = DEFAULT_ARGS;
+            
+            if (optionSet.has(CONFIG_ARGS)){
+                vinaArgs = (String)optionSet.valueOf(CONFIG_ARGS);
+            }
+            
             System.out.println("Generating job in directory: "+outputJobDir);
             System.out.println("Batching: "+Constants.SUB_JOBS_PER_JOB+" sub jobs per job");
+
+            System.out.println("Path to auto dock set to: "+vinaBinPath);
+            System.out.println("Auto Dock Configuration parameters set to:"+vinaArgs);
             
             //create the job directory
             JobDirCreator jdc = getJobDirCreator();
@@ -202,7 +224,7 @@ public class App {
             
             //write out the autodock.sh file into outputjobdir
             AutoDockScriptCreator adsc = getAutoDockScriptCreator();
-            adsc.createAutoDockScript(outputJobDir, DEFAULT_ARGS,DEFAULT_VINA_BIN);
+            adsc.createAutoDockScript(outputJobDir, vinaArgs,vinaBinPath);
             
               //write out the panfish auto dock script file into outputjobdir
             PanfishAutoDockScriptCreator padc = getPanfishAutoDockScriptCreator();
@@ -244,9 +266,10 @@ public class App {
             File outputJobDirFile = new File(outputJobDir);
             System.out.println("Job created in: "+
                     outputJobDirFile.getCanonicalPath());
-            System.out.println("Be sure to adjust "+Constants.VINA+" and "+Constants.ARGUMENTS+" lines in: "+
+            
+            System.out.println("Be sure to verify "+Constants.VINA+" and "+Constants.ARGUMENTS+" lines in: "+
                     outputJobDirFile.getCanonicalPath()+File.separator+
-                    Constants.AUTO_DOCK_SCRIPT+ " file before running");
+                    Constants.AUTO_DOCK_SCRIPT+ " file are correct before running");
             
             System.out.println("To run via panfish invoke:");
             
