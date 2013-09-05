@@ -1,11 +1,11 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-    <groupId>edu.ucsd.crbs.autodockwrapper</groupId>
-    <artifactId>autodockwrapper</artifactId>
+    <groupId>edu.ucsd.crbs.autodockjobgenerator</groupId>
+    <artifactId>autodockjobgenerator</artifactId>
     <packaging>jar</packaging>
-    <version>1.0-SNAPSHOT</version>
-    <name>AutoDockWrapper</name>
+    <version>1.0</version>
+    <name>AutoDockJobGenerator</name>
     <url>http://maven.apache.org</url>
     <build>
         <plugins>
@@ -15,7 +15,7 @@
                     <archive>
                         <manifest>
                             <mainClass>
-                                edu.ucsd.crbs.autodockwrapper.App
+                                edu.ucsd.crbs.autodockjobgenerator.App
                             </mainClass>
                         </manifest>
                     </archive>
