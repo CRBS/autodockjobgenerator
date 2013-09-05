@@ -238,7 +238,7 @@ logMessage "Found $NUM_JOBS to run"
 
 SCORE_CSV="$SCRATCH/outputs/${SGE_TASK_ID}/score.csv"
 
-echo "#Receptor,Ligand,Score" > $SCORE_CSV
+echo "#Receptor,Ligand,kcal/mol" > $SCORE_CSV
 
 for Y in `seq 1 $NUM_JOBS` ; do
 
