@@ -436,6 +436,10 @@ done
 # clean up remote clusters
 remove_remote_directories $X
 
+if [ -e "$CURDIR/failed.jobs" ] ; then
+   job_failed "One or more sub jobs failed"
+fi
+
 echo "Script completed successfully.  Have a nice day."
 
 exit 0
