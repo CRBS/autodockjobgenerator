@@ -22,7 +22,6 @@ public class JobDirCreatorImpl implements JobDirCreator {
      * 
      * {@value edu.ucsd.crbs.autodockjobgenerator.Constants#INPUTS_DIR_NAME}<br/>
      * {@value edu.ucsd.crbs.autodockjobgenerator.Constants#OUT_DIR}<br/>
-     * {@value edu.ucsd.crbs.autodockjobgenerator.Constants#ERR_DIR}<br/>
      * <p/>
      * The <b>path</b> does NOT already need to exist.  
      * 
